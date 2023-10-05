@@ -1178,6 +1178,96 @@ region_t* extract_requests_ipp(unsigned char* buf, unsigned int buf_size, unsign
   *region_count_ref = region_count;
   return regions;
 }
+
+region_t* extract_requests_mqtt(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
+{
+	char *mem;
+	//unsigned int byte_count = 0;
+	unsigned int mem_count = 0;
+	unsigned int mem_size = 1024;
+	unsigned int region_count = 0;
+	unsigned int cur_start = 0;
+	unsigned int cur_end = 0;
+
+	region_t *regions = NULL;
+	
+	// Packet headers for request messages from client
+	//char start[1]={0x20};
+	//char start2[1]={0x82};
+	//char start3[1]={0xC0};
+	//char start4[1]={0xE0};
+	//char start5[1]={0x30};
+	//char start6[1]={0x31};
+
+
+	mem=(char *)ck_alloc(mem_size);
+  
+	// Read till EOF for the request messages
+	while (cur_start < buf_size) {
+	
+		// If only a single byte with packet header is present create a region and break
+		if ((buf_size - cur_start) == 1) {
+
+			region_count++;
+			regions = (region_t *)ck_realloc(regions, region_count * sizeof(region_t));
+			regions[region_count - 1].start_byte = cur_start;
+			regions[region_count - 1].end_byte = buf_size - 1;
+			regions[region_count - 1].state_sequence = NULL;
+			regions[region_count - 1].state_count = 0;	
+		
+			break;	
+		}
+				
+		// Read the packet header
+		memcpy(&mem[mem_count], buf + cur_start, 2);
+		cur_start = cur_start + 2;
+
+		// check the packet length and update current end
+		if (mem[1] >= 0) 
+			cur_end = cur_start + mem[1] - 1;
+		else
+			cur_end = buf_size;
+
+		// Cretate a region for every request 
+		region_count++;
+		regions = (region_t *)ck_realloc(regions, region_count * sizeof(region_t));
+		regions[region_count - 1].start_byte = cur_start - 2;
+		regions[region_count - 1].end_byte = cur_end;
+		regions[region_count - 1].state_sequence = NULL;
+		regions[region_count - 1].state_count = 0;
+		
+		// update the indices
+		mem_count = 0;
+	      	cur_start = cur_end + 1;
+	      	cur_end = cur_start;
+
+	}
+
+	if (mem) ck_free(mem);
+
+	//in case region_count equals zero, it means that the structure of the buffer is broken
+	//hence we create one region for the whole buffer
+
+	if ((region_count == 0) && (buf_size > 0)) {
+
+		regions = (region_t *)ck_realloc(regions, sizeof(region_t));
+		regions[0].start_byte = 0;
+		regions[0].end_byte = buf_size - 1;
+		regions[0].state_sequence = NULL;
+		regions[0].state_count = 0;
+
+		region_count = 1;
+	}
+
+	*region_count_ref = region_count;
+	return regions;
+}
+
+
+
+
+
+
 unsigned int* extract_response_codes_tftp(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
 {
   char *mem;
@@ -1236,7 +1326,7 @@ unsigned int* extract_response_codes_tftp(unsigned char* buf, unsigned int buf_s
   return state_sequence;
 }
 
-unsigned int* extract_response_code_dhcp(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
+unsigned int* extract_response_codes_dhcp(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
 {
   char *mem;
   unsigned int byte_count = 0;
@@ -1297,7 +1387,7 @@ unsigned int* extract_response_code_dhcp(unsigned char* buf, unsigned int buf_si
   return state_sequence;
 }
 
-unsigned int* extract_response_code_SNTP(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
+unsigned int* extract_response_codes_SNTP(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
 {
   char *mem;
   unsigned int byte_count = 0;
@@ -1364,7 +1454,7 @@ unsigned int* extract_response_code_SNTP(unsigned char* buf, unsigned int buf_si
   return state_sequence;
 }
 
-unsigned int* extract_response_code_NTP(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
+unsigned int* extract_response_codes_NTP(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
 {
   char *mem;
   unsigned int byte_count = 0;
@@ -1431,7 +1521,7 @@ unsigned int* extract_response_code_NTP(unsigned char* buf, unsigned int buf_siz
 }
 
 
-unsigned int* extract_response_code_SNMP(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
+unsigned int* extract_response_codes_SNMP(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
 {
   char *mem;
   unsigned int byte_count = 0;
@@ -1742,6 +1832,69 @@ unsigned int* extract_response_codes_dns(unsigned char* buf, unsigned int buf_si
   *state_count_ref = state_count;
   return state_sequence;
 }
+
+unsigned int* extract_response_codes_mqtt(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
+{
+	char *mem;
+	unsigned int byte_count = 0;
+	unsigned int mem_count = 0;
+	unsigned int mem_size = 1024;
+	unsigned int *state_sequence = NULL;
+	unsigned int state_count = 0;
+	
+	// Packet headers for MQTT broker responses
+	char start1[1]={0x20};
+	char start2[1]={0x30};
+	char start3[1]={0x90};
+	char start4[1]={0xD0};
+	char start5[1]={0x31};
+
+	mem=(char *)ck_alloc(mem_size);
+	
+	// Initial state of the response state machine
+	state_count++;
+	state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
+	state_sequence[state_count - 1] = 0;
+
+	// Read till EOF received from the broker
+	while (byte_count < buf_size) {
+		
+		// Copy the packet header to get the message type
+		memcpy(&mem[mem_count++], buf + byte_count++, 1);
+		memcpy(&mem[mem_count], buf + byte_count++, 1);
+
+		// Determine if it's a response packet
+		if ((mem_count > 0) && ((memcmp(&mem[0], start2, 1) == 0) || (memcmp(&mem[0], start1, 1) == 0) || (memcmp(&mem[0], start3, 1) == 0) || (memcmp(&mem[0], start4, 1) == 0) || (memcmp(&mem[0], 			start5, 1) == 0))) {
+			
+			// Get the state name from the packet
+			unsigned char message_code = (unsigned char)mem[0];
+			
+			// Do not create new states if the recieved packet belongs to initial state
+			if (message_code == 0) break;
+			
+			// Create a new state
+			state_count++;
+			state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
+			state_sequence[state_count - 1] = message_code;
+			mem_count = 0;
+			byte_count = byte_count+mem[1]-1;
+			} 
+			else {
+				mem_count++;
+
+				if (mem_count == mem_size) {
+					//enlarge the mem buffer
+					mem_size = mem_size * 2;
+					mem=(char *)ck_realloc(mem, mem_size);
+			}
+		}
+	}
+	if (mem) ck_free(mem);
+	*state_count_ref = state_count;
+	return state_sequence;
+
+}
+
 
 static unsigned char dtls12_version[2] = {0xFE, 0xFD};
 

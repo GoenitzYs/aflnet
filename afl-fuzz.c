@@ -412,6 +412,16 @@ kliter_t(lms) *M2_prev, *M2_next;
 unsigned int* (*extract_response_codes)(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref) = NULL;
 region_t* (*extract_requests)(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref) = NULL;
 
+//DIY
+int state_flag = 1;
+struct queue_entry* tmp_q;
+struct queue_entry* add_tmp_queue(u8* fname, u32 len, u8 passed_det);
+static void add_q_to_queue(struct queue_entry *q);
+static void add_to_queue(u8* fname, u32 len, u8 passed_det);
+static void destroy_tmp_queue(struct queue_entry *q);
+static void traverse_queue(char **argv);
+//END OF DIY
+
 /* Initialize the implemented state machine as a graphviz graph */
 void setup_ipsm()
 {
@@ -1116,7 +1126,10 @@ HANDLE_RESPONSES:
 
   //give the server a bit more time to gracefully terminate
   while(1) {
+    // signal(SIGCHLD, SIG_IGN);
+    // int status = kill(child_pid, SIGINT);
     int status = kill(child_pid, 0);
+    // waitpid(child_pid, &status, 0);
     if ((status != 0) && (errno == ESRCH)) break;
   }
 
@@ -1572,85 +1585,6 @@ static void mark_as_redundant(struct queue_entry* q, u8 state) {
 
 }
 
-
-/* Append new test case to the queue. */
-
-static void add_to_queue(u8* fname, u32 len, u8 passed_det) {
-
-  struct queue_entry* q = ck_alloc(sizeof(struct queue_entry));
-
-  q->fname        = fname;
-  q->len          = len;
-  q->depth        = cur_depth + 1;
-  q->passed_det   = passed_det;
-  q->regions      = NULL;
-  q->region_count = 0;
-  q->index        = queued_paths;
-  q->generating_state_id = target_state_id;
-  q->is_initial_seed = 0;
-  q->unique_state_count = 0;
-
-  if (q->depth > max_depth) max_depth = q->depth;
-
-  if (queue_top) {
-
-    queue_top->next = q;
-    queue_top = q;
-
-  } else q_prev100 = queue = queue_top = q;
-
-  queued_paths++;
-  pending_not_fuzzed++;
-
-  cycles_wo_finds = 0;
-
-  if (!(queued_paths % 100)) {
-
-    q_prev100->next_100 = q;
-    q_prev100 = q;
-
-  }
-
-  /* AFLNet: extract regions keeping client requests if needed */
-  if (corpus_read_or_sync) {
-    FILE *fp;
-    unsigned char *buf;
-
-    /* opening file for reading */
-    fp = fopen(fname , "rb");
-
-    buf = (unsigned char *)ck_alloc(len);
-    u32 byte_count = fread(buf, 1, len, fp);
-    fclose(fp);
-
-    if (byte_count != len) PFATAL("AFLNet - Inconsistent file length '%s'", fname);
-    q->regions = (*extract_requests)(buf, len, &q->region_count);
-    ck_free(buf);
-
-    //Keep track the maximal number of seed regions
-    //We use this for some optimization to reduce the overhead while following the server's sequence diagram
-    if ((corpus_read_or_sync == 1) && (q->region_count > max_seed_region_count)) max_seed_region_count = q->region_count;
-
-  } else {
-    //Convert the linked list kl_messages to regions
-    q->regions = convert_kl_messages_to_regions(kl_messages, &q->region_count, messages_sent);
-  }
-
-  /* save the regions' information to file for debugging purpose */
-  u8 *fn = alloc_printf("%s/regions/%s", out_dir, basename(fname));
-  save_regions_to_file(q->regions, q->region_count, fn);
-  ck_free(fn);
-
-  last_path_time = get_cur_time();
-
-  //Add a new column to the was_fuzzed map
-  if (fuzzed_map_states) {
-    expand_was_fuzzed_map(0, 1);
-  } else {
-    //Also add a new row (for state 0) if needed
-    expand_was_fuzzed_map(1, 1);
-  }
-}
 
 
 /* Destroy the entire queue. */
@@ -4017,9 +3951,22 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     u32 full_len = save_kl_messages_to_file(kl_messages, fn, 0, messages_sent);
 
     /* We use the actual length of all messages (full_len), not the len of the mutated message subsequence (len)*/
-    add_to_queue(fn, full_len, 0);
-
-    if (state_aware_mode) update_state_aware_variables(queue_top, 0);
+    // add_to_queue(fn, full_len, 0);
+    // if (state_aware_mode) update_state_aware_variables(queue_top, 0);
+    tmp_q = add_tmp_queue(fn, full_len, 0);
+    update_state_aware_variables(tmp_q, 0);
+    if(state_flag){
+      add_q_to_queue(tmp_q);
+      if(queued_paths > 1){
+        init_forkserver(argv);
+        traverse_queue(argv);
+      }
+      return 1;
+    }
+    else{
+      add_q_to_queue(tmp_q);
+      destroy_tmp_queue(tmp_q);
+    }
 
     /* save the seed to file for replaying */
     u8 *fn_replay = alloc_printf("%s/replayable-queue/%s", out_dir, basename(queue_top->fname));
@@ -8808,6 +8755,619 @@ static int check_ep_capability(cap_value_t cap, const char *filename) {
   return 0;
 }
 
+
+//DIY
+/* Append new test case to the queue. */
+struct queue_entry* add_tmp_queue(u8* fname, u32 len, u8 passed_det) {
+
+  struct queue_entry* q = ck_alloc(sizeof(struct queue_entry));
+
+  q->fname        = fname;
+  q->len          = len;
+  q->depth        = cur_depth + 1;
+  q->passed_det   = passed_det;
+  q->regions      = NULL;
+  q->region_count = 0;
+  q->index        = queued_paths;
+  q->generating_state_id = target_state_id;
+  q->is_initial_seed = 0;
+  q->unique_state_count = 0;
+
+  if (q->depth > max_depth) max_depth = q->depth;
+
+  /* AFLNet: extract regions keeping client requests if needed */
+  if (corpus_read_or_sync) {
+    FILE *fp;
+    unsigned char *buf;
+
+    /* opening file for reading */
+    fp = fopen(fname , "rb");
+
+    buf = (unsigned char *)ck_alloc(len);
+    u32 byte_count = fread(buf, 1, len, fp);
+    fclose(fp);
+
+    if (byte_count != len) PFATAL("AFLNet - Inconsistent file length '%s'", fname);
+    q->regions = (*extract_requests)(buf, len, &q->region_count);
+    ck_free(buf);
+
+    //Keep track the maximal number of seed regions
+    //We use this for some optimization to reduce the overhead while following the server's sequence diagram
+    if ((corpus_read_or_sync == 1) && (q->region_count > max_seed_region_count)) max_seed_region_count = q->region_count;
+
+  } else {
+    //Convert the linked list kl_messages to regions
+    q->regions = convert_kl_messages_to_regions(kl_messages, &q->region_count, messages_sent);
+  }
+
+  /* save the regions' information to file for debugging purpose */
+  u8 *fn = alloc_printf("%s/regions/%s", out_dir, basename(fname));
+  save_regions_to_file(q->regions, q->region_count, fn);
+  ck_free(fn);
+
+  last_path_time = get_cur_time();
+
+  //Add a new column to the was_fuzzed map
+  if (fuzzed_map_states) {
+    expand_was_fuzzed_map(0, 1);
+  } else {
+    //Also add a new row (for state 0) if needed
+    expand_was_fuzzed_map(1, 1);
+  }
+
+  return q;
+}
+
+static void add_q_to_queue(struct queue_entry *q){
+  if (queue_top) {
+
+    queue_top->next = q;
+    queue_top = q;
+
+  } else q_prev100 = queue = queue_top = q;
+
+  queued_paths++;
+  pending_not_fuzzed++;
+
+  cycles_wo_finds = 0;
+
+  if (!(queued_paths % 100)) {
+
+    q_prev100->next_100 = q;
+    q_prev100 = q;
+
+  }
+}
+
+static void destroy_tmp_queue(struct queue_entry *q){
+  ck_free(q);
+}
+
+
+
+static void add_to_queue(u8* fname, u32 len, u8 passed_det) {
+
+  struct queue_entry* q = ck_alloc(sizeof(struct queue_entry));
+
+  q->fname        = fname;
+  q->len          = len;
+  q->depth        = cur_depth + 1;
+  q->passed_det   = passed_det;
+  q->regions      = NULL;
+  q->region_count = 0;
+  q->index        = queued_paths;
+  q->generating_state_id = target_state_id;
+  q->is_initial_seed = 0;
+  q->unique_state_count = 0;
+
+  if (q->depth > max_depth) max_depth = q->depth;
+
+  if (queue_top) {
+
+    queue_top->next = q;
+    queue_top = q;
+
+  } else q_prev100 = queue = queue_top = q;
+
+  queued_paths++;
+  pending_not_fuzzed++;
+
+  cycles_wo_finds = 0;
+
+  if (!(queued_paths % 100)) {
+
+    q_prev100->next_100 = q;
+    q_prev100 = q;
+
+  }
+
+  /* AFLNet: extract regions keeping client requests if needed */
+  if (corpus_read_or_sync) {
+    FILE *fp;
+    unsigned char *buf;
+
+    /* opening file for reading */
+    fp = fopen(fname , "rb");
+
+    buf = (unsigned char *)ck_alloc(len);
+    u32 byte_count = fread(buf, 1, len, fp);
+    fclose(fp);
+
+    if (byte_count != len) PFATAL("AFLNet - Inconsistent file length '%s'", fname);
+    q->regions = (*extract_requests)(buf, len, &q->region_count);
+    ck_free(buf);
+
+    //Keep track the maximal number of seed regions
+    //We use this for some optimization to reduce the overhead while following the server's sequence diagram
+    if ((corpus_read_or_sync == 1) && (q->region_count > max_seed_region_count)) max_seed_region_count = q->region_count;
+
+  } else {
+    //Convert the linked list kl_messages to regions
+    q->regions = convert_kl_messages_to_regions(kl_messages, &q->region_count, messages_sent);
+  }
+
+  /* save the regions' information to file for debugging purpose */
+  u8 *fn = alloc_printf("%s/regions/%s", out_dir, basename(fname));
+  save_regions_to_file(q->regions, q->region_count, fn);
+  ck_free(fn);
+
+  last_path_time = get_cur_time();
+
+  //Add a new column to the was_fuzzed map
+  if (fuzzed_map_states) {
+    expand_was_fuzzed_map(0, 1);
+  } else {
+    //Also add a new row (for state 0) if needed
+    expand_was_fuzzed_map(1, 1);
+  }
+}
+
+
+EXP_ST u8 tmp_fuzz_stuff(char** argv, struct queue_entry* q) {
+    /* Construct the kl_messages linked list and identify boundary pointers (M2_prev and M2_next) */
+  kl_messages = construct_kl_messages(queue_cur->fname, queue_cur->regions, queue_cur->region_count);
+  u32 M2_start_region_ID = 0, M2_region_count = 0;
+  s32 len, fd, temp_len, i, j;
+  u8  *in_buf = NULL, *out_buf, *orig_in, *ex_tmp, *eff_map = 0;
+  u64 havoc_queued,  orig_hit_cnt, new_hit_cnt;
+  u32 splice_cycle = 0, perf_score = 100, orig_perf, prev_cksum, eff_cnt = 1, M2_len;
+  kliter_t(lms) *it;
+
+  M2_prev = NULL;
+  M2_next = kl_end(kl_messages);
+
+  u32 count = 0;
+  for (it = kl_begin(kl_messages); it != kl_end(kl_messages); it = kl_next(it)) {
+    if (count == M2_start_region_ID - 1) {
+      M2_prev = it;
+    }
+
+    if (count == M2_start_region_ID + M2_region_count) {
+      M2_next = it;
+    }
+    count++;
+  }
+
+  /* Construct the buffer to be mutated and update out_buf */
+  if (M2_prev == NULL) {
+    it = kl_begin(kl_messages);
+  } else {
+    it = kl_next(M2_prev);
+  }
+
+  u32 in_buf_size = 0;
+  while (it != M2_next) {
+    in_buf = (u8 *) ck_realloc (in_buf, in_buf_size + kl_val(it)->msize);
+    if (!in_buf) PFATAL("AFLNet cannot allocate memory for in_buf");
+    //Retrieve data from kl_messages to populate the in_buf
+    memcpy(&in_buf[in_buf_size], kl_val(it)->mdata, kl_val(it)->msize);
+
+    in_buf_size += kl_val(it)->msize;
+    it = kl_next(it);
+  }
+
+  orig_in = in_buf;
+
+  out_buf = ck_alloc_nozero(in_buf_size);
+  memcpy(out_buf, in_buf, in_buf_size);
+
+  //Update len to keep the correct size of the buffer being mutated
+  len = in_buf_size;
+
+  //Save the len for later use
+  M2_len = len;
+
+  u8 fault;
+
+  if (post_handler) {
+
+    out_buf = post_handler(out_buf, &len);
+    if (!out_buf || !len) return 0;
+
+  }
+
+  /* AFLNet update kl_messages linked list */
+
+  // parse the out_buf into messages
+  u32 region_count = 0;
+  region_t *regions = (*extract_requests)(out_buf, len, &region_count);
+  if (!region_count) PFATAL("AFLNet Region count cannot be Zero");
+
+  // update kl_messages linked list
+  u32 tmp_i;
+  kliter_t(lms) *prev_last_message, *cur_last_message;
+  prev_last_message = get_last_message(kl_messages);
+
+  // limit the #messages based on max_seed_region_count to reduce overhead
+  for (tmp_i = 0; tmp_i < region_count; tmp_i++) {
+    u32 len;
+    //Identify region size
+    if (tmp_i == max_seed_region_count) {
+      len = regions[region_count - 1].end_byte - regions[tmp_i].start_byte + 1;
+    } else {
+      len = regions[tmp_i].end_byte - regions[tmp_i].start_byte + 1;
+    }
+
+    //Create a new message
+    message_t *m = (message_t *) ck_alloc(sizeof(message_t));
+    m->mdata = (char *) ck_alloc(len);
+    m->msize = len;
+    if (m->mdata == NULL) PFATAL("Unable to allocate memory region to store new message");
+    memcpy(m->mdata, &out_buf[regions[tmp_i].start_byte], len);
+
+    //Insert the message to the linked list
+    *kl_pushp(lms, kl_messages) = m;
+
+    //Update M2_next in case it points to the tail (M3 is empty)
+    //because the tail in klist is updated once a new entry is pushed into it
+    //in fact, the old tail storage is used to store the newly added entry and a new tail is created
+    if (M2_next->next == kl_end(kl_messages)) {
+      M2_next = kl_end(kl_messages);
+    }
+
+    if (tmp_i == max_seed_region_count) break;
+  }
+  ck_free(regions);
+
+  cur_last_message = get_last_message(kl_messages);
+
+  // update the linked list with the new M2 & free the previous M2
+
+  //detach the head of previous M2 from the list
+  kliter_t(lms) *old_M2_start;
+  if (M2_prev == NULL) {
+    old_M2_start = kl_begin(kl_messages);
+    kl_begin(kl_messages) = kl_next(prev_last_message);
+    kl_next(cur_last_message) = M2_next;
+    kl_next(prev_last_message) = kl_end(kl_messages);
+  } else {
+    old_M2_start = kl_next(M2_prev);
+    kl_next(M2_prev) = kl_next(prev_last_message);
+    kl_next(cur_last_message) = M2_next;
+    kl_next(prev_last_message) = kl_end(kl_messages);
+  }
+
+  // free the previous M2
+  kliter_t(lms) *cur_it, *next_it;
+  cur_it = old_M2_start;
+  next_it = kl_next(cur_it);
+  do {
+    ck_free(kl_val(cur_it)->mdata);
+    ck_free(kl_val(cur_it));
+    kmp_free(lms, kl_messages->mp, cur_it);
+    --kl_messages->size;
+
+    cur_it = next_it;
+    next_it = kl_next(next_it);
+  } while(cur_it != M2_next);
+
+  /* End of AFLNet code */
+
+  fault = run_target(argv, exec_tmout);
+
+  //Update fuzz count, no matter whether the generated test is interesting or not
+  update_fuzzs();
+
+  if (stop_soon) return 1;
+
+  if (fault == FAULT_TMOUT) {
+
+    if (subseq_tmouts++ > TMOUT_LIMIT) {
+      cur_skipped_paths++;
+      return 1;
+    }
+
+  } else subseq_tmouts = 0;
+
+  /* Users can hit us with SIGUSR1 to request the current input
+     to be abandoned. */
+
+  if (skip_requested) {
+
+     skip_requested = 0;
+     cur_skipped_paths++;
+     return 1;
+
+  }
+  return 0;
+
+}
+
+EXP_ST u8 common_fuzz_stuff_nosave(char** argv, u8* out_buf, u32 len) {
+
+  u8 fault;
+
+  if (post_handler) {
+
+    out_buf = post_handler(out_buf, &len);
+    if (!out_buf || !len) return 0;
+
+  }
+
+  write_to_testcase(out_buf, len);
+
+  /* AFLNet update kl_messages linked list */
+
+  // parse the out_buf into messages
+  u32 region_count = 0;
+  region_t *regions = (*extract_requests)(out_buf, len, &region_count);
+  if (!region_count) PFATAL("AFLNet Region count cannot be Zero");
+
+  // update kl_messages linked list
+  u32 i;
+  kliter_t(lms) *prev_last_message, *cur_last_message;
+  prev_last_message = get_last_message(kl_messages);
+
+  // limit the #messages based on max_seed_region_count to reduce overhead
+  for (i = 0; i < region_count; i++) {
+    u32 len;
+    //Identify region size
+    if (i == max_seed_region_count) {
+      len = regions[region_count - 1].end_byte - regions[i].start_byte + 1;
+    } else {
+      len = regions[i].end_byte - regions[i].start_byte + 1;
+    }
+
+    //Create a new message
+    message_t *m = (message_t *) ck_alloc(sizeof(message_t));
+    m->mdata = (char *) ck_alloc(len);
+    m->msize = len;
+    if (m->mdata == NULL) PFATAL("Unable to allocate memory region to store new message");
+    memcpy(m->mdata, &out_buf[regions[i].start_byte], len);
+
+    //Insert the message to the linked list
+    *kl_pushp(lms, kl_messages) = m;
+
+    //Update M2_next in case it points to the tail (M3 is empty)
+    //because the tail in klist is updated once a new entry is pushed into it
+    //in fact, the old tail storage is used to store the newly added entry and a new tail is created
+    if (M2_next->next == kl_end(kl_messages)) {
+      M2_next = kl_end(kl_messages);
+    }
+
+    if (i == max_seed_region_count) break;
+  }
+  ck_free(regions);
+
+  cur_last_message = get_last_message(kl_messages);
+
+  // update the linked list with the new M2 & free the previous M2
+
+  //detach the head of previous M2 from the list
+  kliter_t(lms) *old_M2_start;
+  if (M2_prev == NULL) {
+    old_M2_start = kl_begin(kl_messages);
+    kl_begin(kl_messages) = kl_next(prev_last_message);
+    kl_next(cur_last_message) = M2_next;
+    kl_next(prev_last_message) = kl_end(kl_messages);
+  } else {
+    old_M2_start = kl_next(M2_prev);
+    kl_next(M2_prev) = kl_next(prev_last_message);
+    kl_next(cur_last_message) = M2_next;
+    kl_next(prev_last_message) = kl_end(kl_messages);
+  }
+
+  // free the previous M2
+  kliter_t(lms) *cur_it, *next_it;
+  cur_it = old_M2_start;
+  next_it = kl_next(cur_it);
+  do {
+    ck_free(kl_val(cur_it)->mdata);
+    ck_free(kl_val(cur_it));
+    kmp_free(lms, kl_messages->mp, cur_it);
+    --kl_messages->size;
+
+    cur_it = next_it;
+    next_it = kl_next(next_it);
+  } while(cur_it != M2_next);
+
+  /* End of AFLNet code */
+
+  fault = run_target(argv, exec_tmout);
+
+  //Update fuzz count, no matter whether the generated test is interesting or not
+  if (state_aware_mode) update_fuzzs();
+
+  if (stop_soon) return 1;
+
+  if (fault == FAULT_TMOUT) {
+
+    if (subseq_tmouts++ > TMOUT_LIMIT) {
+      cur_skipped_paths++;
+      return 1;
+    }
+
+  } else subseq_tmouts = 0;
+
+  /* Users can hit us with SIGUSR1 to request the current input
+     to be abandoned. */
+
+  if (skip_requested) {
+
+     skip_requested = 0;
+     cur_skipped_paths++;
+     return 1;
+
+  }
+
+  /* This handles FAULT_ERROR for us: */
+
+  if (!(stage_cur % stats_update_freq) || stage_cur + 1 == stage_max)
+    show_stats();
+
+  return 0;
+
+}
+
+static u8 fuzz_again(char** argv){
+  s32 len, fd, temp_len, i, j;
+  u8  *in_buf = NULL, *out_buf, *orig_in, *ex_tmp, *eff_map = 0;
+  u64 havoc_queued,  orig_hit_cnt, new_hit_cnt;
+  u32 splice_cycle = 0, perf_score = 100, orig_perf, prev_cksum, eff_cnt = 1, M2_len;
+
+  u8  ret_val = 1, doing_det = 0;
+
+  u8  a_collect[MAX_AUTO_EXTRA];
+  u32 a_len = 0;
+
+  subseq_tmouts = 0;
+
+  cur_depth = queue_cur->depth;
+
+  u32 M2_start_region_ID = 0, M2_region_count = 0;
+  /* Identify the prefix M1, the candidate subsequence M2, and the suffix M3. See AFLNet paper */
+  /* In this implementation, we only need to indentify M2_start_region_ID which is the first region of M2
+  and M2_region_count which is the total number of regions in M2. How the information is identified is
+  state aware dependent. However, once the information is clear, the code for fuzzing preparation is the same */
+
+  if (state_aware_mode) {
+    /* In state aware mode, select M2 based on the targeted state ID */
+    u32 total_region = queue_cur->region_count;
+    if (total_region == 0) PFATAL("0 region found for %s", queue_cur->fname);
+
+    if (target_state_id == 0) {
+      //No prefix subsequence (M1 is empty)
+      M2_start_region_ID = 0;
+      M2_region_count = 0;
+
+      //To compute M2_region_count, we identify the first region which has a different annotation
+      //Now we quickly compare the state count, we could make it more fine grained by comparing the exact response codes
+      for(i = 0; i < queue_cur->region_count ; i++) {
+        if (queue_cur->regions[i].state_count != queue_cur->regions[0].state_count) break;
+        M2_region_count++;
+      }
+    } else {
+      //M1 is unlikely to be empty
+      M2_start_region_ID = 0;
+
+      //Identify M2_start_region_ID first based on the target_state_id
+      for(i = 0; i < queue_cur->region_count; i++) {
+        u32 regionalStateCount = queue_cur->regions[i].state_count;
+        if (regionalStateCount > 0) {
+          //reachableStateID is the last ID in the state_sequence
+          u32 reachableStateID = queue_cur->regions[i].state_sequence[regionalStateCount - 1];
+          M2_start_region_ID++;
+          if (reachableStateID == target_state_id) break;
+        } else {
+          //No annotation for this region
+          return 1;
+        }
+      }
+
+      //Then identify M2_region_count
+      for(i = M2_start_region_ID; i < queue_cur->region_count ; i++) {
+        if (queue_cur->regions[i].state_count != queue_cur->regions[M2_start_region_ID].state_count) break;
+        M2_region_count++;
+      }
+
+      //Handle corner case(s) and skip the current queue entry
+      if (M2_start_region_ID >= queue_cur->region_count) return 1;
+    }
+  } else {
+    /* Select M2 randomly */
+    u32 total_region = queue_cur->region_count;
+    if (total_region == 0) PFATAL("0 region found for %s", queue_cur->fname);
+
+    M2_start_region_ID = UR(total_region);
+    M2_region_count = UR(total_region - M2_start_region_ID);
+    if (M2_region_count == 0) M2_region_count++; //Mutate one region at least
+  }
+
+  /* Construct the kl_messages linked list and identify boundary pointers (M2_prev and M2_next) */
+  kl_messages = construct_kl_messages(queue_cur->fname, queue_cur->regions, queue_cur->region_count);
+
+  kliter_t(lms) *it;
+
+  M2_prev = NULL;
+  M2_next = kl_end(kl_messages);
+
+  u32 count = 0;
+  for (it = kl_begin(kl_messages); it != kl_end(kl_messages); it = kl_next(it)) {
+    if (count == M2_start_region_ID - 1) {
+      M2_prev = it;
+    }
+
+    if (count == M2_start_region_ID + M2_region_count) {
+      M2_next = it;
+    }
+    count++;
+  }
+
+  /* Construct the buffer to be mutated and update out_buf */
+  if (M2_prev == NULL) {
+    it = kl_begin(kl_messages);
+  } else {
+    it = kl_next(M2_prev);
+  }
+
+  u32 in_buf_size = 0;
+  while (it != M2_next) {
+    in_buf = (u8 *) ck_realloc (in_buf, in_buf_size + kl_val(it)->msize);
+    if (!in_buf) PFATAL("AFLNet cannot allocate memory for in_buf");
+    //Retrieve data from kl_messages to populate the in_buf
+    memcpy(&in_buf[in_buf_size], kl_val(it)->mdata, kl_val(it)->msize);
+
+    in_buf_size += kl_val(it)->msize;
+    it = kl_next(it);
+  }
+
+  orig_in = in_buf;
+
+  out_buf = ck_alloc_nozero(in_buf_size);
+  memcpy(out_buf, in_buf, in_buf_size);
+
+  //Update len to keep the correct size of the buffer being mutated
+  len = in_buf_size;
+
+  //Save the len for later use
+  M2_len = len;
+
+
+  common_fuzz_stuff_nosave(argv, out_buf, len);
+}
+
+static void traverse_queue(char **argv){
+  u8 ret_val = 1;
+  queue_cur = queue;
+
+  // s32 len, fd, temp_len, i, j;
+  // u8  *in_buf = NULL, *out_buf, *orig_in, *ex_tmp, *eff_map = 0;
+  // u64 havoc_queued,  orig_hit_cnt, new_hit_cnt;
+  // u32 splice_cycle = 0, perf_score = 100, orig_perf, prev_cksum, eff_cnt = 1, M2_len;
+
+  // u8  ret_val = 1, doing_det = 0;
+
+  // u8  a_collect[MAX_AUTO_EXTRA];
+  // u32 a_len = 0;
+
+  while(queue_cur){
+    ret_val = fuzz_again(argv);
+    queue_cur = queue_cur->next;
+  }
+  queue_cur = queue;
+}
+//END OF DIY
+
 #ifndef AFL_LIB
 
 /* Main entry point */
@@ -9075,17 +9635,22 @@ int main(int argc, char** argv) {
           extract_response_codes = &extract_response_codes_tftp;
         }else if (!strcmp(optarg, "DHCP")) {
           extract_requests = &extract_requests_dhcp;
-          extract_response_codes = &extract_response_code_dhcp;
+          extract_response_codes = &extract_response_codes_dhcp;
         }else if (!strcmp(optarg, "SNTP")) {
           extract_requests = &extract_requests_SNTP;
-          extract_response_codes = &extract_response_code_SNTP;
+          extract_response_codes = &extract_response_codes_SNTP;
         }else if (!strcmp(optarg, "NTP")) {
           extract_requests = &extract_requests_NTP;
-          extract_response_codes = &extract_response_code_NTP;
+          extract_response_codes = &extract_response_codes_NTP;
         }else if (!strcmp(optarg, "SNMP")) {
           extract_requests = &extract_requests_SNMP;
-          extract_response_codes = &extract_response_code_SNMP;
-        } else {
+          extract_response_codes = &extract_response_codes_SNMP;
+        }else if (!strcmp(optarg, "MQTT")) {
+          extract_requests = &extract_requests_mqtt;
+          extract_response_codes = &extract_response_codes_mqtt;
+        }
+        
+        else {
           FATAL("%s protocol is not supported yet!", optarg);
         }
 
@@ -9397,7 +9962,8 @@ int main(int argc, char** argv) {
   save_auto();
 
 stop_fuzzing:
-
+  init_forkserver(use_argv);
+  traverse_queue(use_argv);
   SAYF(CURSOR_SHOW cLRD "\n\n+++ Testing aborted %s +++\n" cRST,
        stop_soon == 2 ? "programmatically" : "by user");
 
