@@ -9648,6 +9648,9 @@ int main(int argc, char** argv) {
         }else if (!strcmp(optarg, "MQTT")) {
           extract_requests = &extract_requests_mqtt;
           extract_response_codes = &extract_response_codes_mqtt;
+        }else if (!strcmp(optarg, "POP3")) {
+          extract_requests = &extract_requests_pop3;
+          extract_response_codes = &extract_response_codes_pop3;
         }
         
         else {
