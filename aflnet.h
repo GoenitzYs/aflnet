@@ -1,6 +1,7 @@
 #ifndef __AFLNET_H
 #define __AFLNET_H 1
 
+#include <stdio.h>
 #include "klist.h"
 #include "khash.h"
 #include <arpa/inet.h>
@@ -31,6 +32,11 @@ typedef struct {
   void **seeds;               /* keeps all seeds reaching this state -- can be casted to struct queue_entry* */
   u32 seeds_count;            /* total number of seeds, it must be equal the size of the seeds array */
 } state_info_t;
+
+typedef struct {
+  unsigned int numeric_info[3];
+  char *header;
+} protocol_info_t;
 
 enum {
   /* 00 */ PRO_TCP,
@@ -79,6 +85,9 @@ unsigned int* extract_response_codes_mqtt(unsigned char* buf, unsigned int buf_s
 unsigned int* extract_response_codes_pop3(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
 unsigned int* extract_response_codes_generic(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
 unsigned int get_hash_from_string(char* buf);
+
+protocol_info_t read_file(char *f_name);
+unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref, protocol_info_t *p_info);
 
 extern unsigned int* (*extract_response_codes)(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
 
