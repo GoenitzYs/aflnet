@@ -413,6 +413,7 @@ unsigned int* (*extract_response_codes)(unsigned char* buf, unsigned int buf_siz
 region_t* (*extract_requests)(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref) = NULL;
 
 //DIY
+
 int state_flag = 1;
 struct queue_entry* tmp_q;
 struct queue_entry* add_tmp_queue(u8* fname, u32 len, u8 passed_det);
@@ -420,6 +421,9 @@ static void add_q_to_queue(struct queue_entry *q);
 static void add_to_queue(u8* fname, u32 len, u8 passed_det);
 static void destroy_tmp_queue(struct queue_entry *q);
 static void traverse_queue(char **argv);
+
+EXP_ST u8 *p_file;
+protocol_info_t p_info;
 //END OF DIY
 
 /* Initialize the implemented state machine as a graphviz graph */
@@ -9394,7 +9398,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:QN:D:W:w:e:P:KEq:s:RFc:l:")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:QN:D:W:w:e:P:p:KEq:s:RFc:l:")) > 0)
 
     switch (opt) {
 
@@ -9655,7 +9659,7 @@ int main(int argc, char** argv) {
           extract_response_codes = &extract_response_codes_pop3;
         }else if (!strcmp(optarg, "TEXT")) {
           extract_requests = &extract_requests_generic;
-          extract_response_codes = &extract_response_codes_generic;
+          extract_response_codes = &extract_response_codes_generic_2;
         }
         
         else {
@@ -9664,6 +9668,12 @@ int main(int argc, char** argv) {
 
         protocol_selected = 1;
 
+        break;
+
+      case 'p': /* protocol_file */
+
+        if (p_file) FATAL("Multiple -i options not supported");
+        p_file = optarg;
         break;
 
       case 'K':
@@ -9765,6 +9775,13 @@ int main(int argc, char** argv) {
 
   if (getenv("AFL_LD_PRELOAD"))
     FATAL("Use AFL_PRELOAD instead of AFL_LD_PRELOAD");
+
+  //DIY
+  if (access("protocol_info", F_OK) == 0)
+    remove("protocol_info");
+  if(p_file)
+    get_pfile(p_file);
+  //END OF DIY
 
   save_cmdline(argc, argv);
 
