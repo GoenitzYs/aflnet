@@ -1495,7 +1495,7 @@ unsigned int* extract_response_codes_generic(unsigned char* buf, unsigned int bu
 
 unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
 {
-  protocol_info_t *p_info;
+  protocol_info_t *p_info = NULL;
 
   char *mem;
   unsigned int byte_count = 0;
@@ -1518,8 +1518,9 @@ unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int 
   char *header;
 
 
-  if(access(tmp_pfile, F_OK) != 0)
-    p_info = read_pfile(tmp_pfile);
+  if(access("protocol_info", F_OK) == 0){
+    p_info = read_pfile("protocol_info");
+  }
   
   if(p_info){
     min_seq_len = p_info->numeric_info[0];
