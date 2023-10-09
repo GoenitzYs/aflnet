@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
@@ -11,6 +12,7 @@
 #include "alloc-inl.h"
 #include "aflnet.h"
 
+static u8 *tmp_pfile = "protocol_info";
 // Protocol-specific functions for extracting requests and responses
 
 region_t* extract_requests_tftp(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
@@ -1330,6 +1332,8 @@ region_t* extract_requests_pop3(unsigned char* buf, unsigned int buf_size, unsig
 }
 
 
+//DIY
+
 void get_pfile(char *f_name){
   protocol_info_t ret_info;
   char line[256];
@@ -1513,9 +1517,10 @@ unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int 
   unsigned int header_len = 0;
   char *header;
 
-  if (access("protocol_info", F_OK) == 0)
-    p_info = read_pfile("protocol_info");
 
+  if(access(tmp_pfile, F_OK) != 0)
+    p_info = read_pfile(tmp_pfile);
+  
   if(p_info){
     min_seq_len = p_info->numeric_info[0];
     max_sat_len = p_info->numeric_info[1];
@@ -1527,18 +1532,18 @@ unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int 
     }
   }
 
-  while (byte_count < buf_size) {
+  while(byte_count < buf_size) {
     memcpy(&mem[mem_count], buf + byte_count++, 1);
 
     if ((mem_count > 0) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) {
       if(mem_count >= min_seq_len && (!header || (memcmp(&mem, header, header_len) == 0))){
         //Extract the response code which is the first 3 bytes
-        char temp[max_sat_len];
-        memcpy(temp, mem[sat_offset], max_sat_len);
-        temp[max_sat_len-1] = 0x0;
+        char temp[max_sat_len+1];
+        memcpy(temp, mem + sat_offset, sizeof(char) * max_sat_len);
+        temp[max_sat_len] = 0x0;
         unsigned int message_code = get_hash_from_string(temp);
 
-        if (message_code == 0) break;
+        if(message_code == 0) break;
 
         state_count++;
         state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
@@ -1549,19 +1554,19 @@ unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int 
       mem_count = 0;
     } else {
       mem_count++;
-      if (mem_count == mem_size) {
+      if(mem_count == mem_size) {
         //enlarge the mem buffer
         mem_size = mem_size * 2;
         mem=(char *)ck_realloc(mem, mem_size);
       }
     }
   }
-  if (mem) ck_free(mem);
+  if(mem) ck_free(mem);
   *state_count_ref = state_count;
   return state_sequence;
 }
 
-
+//END OF DIY
 
 
 unsigned int* extract_response_codes_tftp(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)

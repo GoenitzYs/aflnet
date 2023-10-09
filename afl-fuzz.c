@@ -9671,7 +9671,6 @@ int main(int argc, char** argv) {
         break;
 
       case 'p': /* protocol_file */
-
         if (p_file) FATAL("Multiple -i options not supported");
         p_file = optarg;
         break;
@@ -9777,9 +9776,9 @@ int main(int argc, char** argv) {
     FATAL("Use AFL_PRELOAD instead of AFL_LD_PRELOAD");
 
   //DIY
-  if (access("protocol_info", F_OK) == 0)
+  if (access("protocol_info", F_OK) == 0) 
     remove("protocol_info");
-  if(p_file)
+  if(p_file) 
     get_pfile(p_file);
   //END OF DIY
 
