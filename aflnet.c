@@ -1411,24 +1411,26 @@ void read_pfile2(char *f_name){
   int cur_pos = 0;
 
   int i = 0;
+  int j = 0;
   int k = 0;
   while(fgets(line, 256, p_file)){
     switch(i){
       case 0:
       case 1:
         n_tokens = 0
-        for(int j = 0; line[j] != '\0'; j++)
-        if(line[j] == ' ')
-        n_tokens++;
+        for(j = 0; line[j] != '\0'; j++){
+          if(line[j] == ' ')
+            n_tokens++;
+        }
 
-        if(n_tokens){
+        if(j){
           n_tokens++;
           p_info2->symbols[i] = ck_alloc(sizeof(msg_symbol) * n_tokens);
           p_info2->symbols_len[i] = n_tokens;
 
           cur_pos = 0;
           k = 0;
-          for(int j = 0; line[j] != '\0'; j++){
+          for(j = 0; line[j] != '\0'; j++){
             if(line[j] == ' '){
               t_symbol[i][k]->length = j - cur_pos;
               memcpy(p_info2->symbols[i][k]->symbol, line[cur_pos], j-cur_pos);
@@ -1436,6 +1438,8 @@ void read_pfile2(char *f_name){
               k++;
             }
           }
+          t_symbol[i][k]->length = j - cur_pos;
+          memcpy(p_info2->symbols[i][k]->symbol, line[cur_pos], j - cur_pos);
         }
         break;
 
@@ -1480,7 +1484,7 @@ region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, 
         (
           p_info2 &&
           (!(p_info2->symbols[0]) || check_head(p_info2->symbols[0], buf + byte_count, p_info2->symbols_length, buf_size - byte_count)) &&
-          (!(p_info2->symbols[1]) || check_tail(p_info2->symbols[1], buf + &mem[mem_count], p_info2->symbols_length))
+          ((!(p_info2->symbols[1]) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) || check_tail(p_info2->symbols[1], buf + &mem[mem_count], p_info2->symbols_length))
         ) ||       
         (memcmp(&mem[mem_count - 1], terminator, 2) == 0)
       )
