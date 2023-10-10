@@ -1526,7 +1526,7 @@ unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int 
   char *header = NULL;
 
 
-  if(access("protocol_info", F_OK) == 0){
+  if(!p_info && !access("protocol_info", F_OK)){
     p_info = read_pfile("protocol_info");
   }
   
