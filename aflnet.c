@@ -1356,6 +1356,7 @@ void get_pfile(char *f_name){
     }
     i++;
   }
+  fclose(textfile);
 
   save_file = fopen("protocol_info", "wb");
   nwritten = fwrite(&ret_info, sizeof(ret_info), 1, save_file);
@@ -1363,6 +1364,7 @@ void get_pfile(char *f_name){
       fprintf(stderr, "Writing to protocol file failed.\n");
       exit(1);
   }
+  fclose(save_file);
 
   return;
 }
@@ -1372,6 +1374,7 @@ protocol_info_t *read_pfile(char *f_name){
   
   save_file = fopen(f_name, "rb");
   fread(ret_info, sizeof(protocol_info_t), 1, save_file);
+  fclose(save_file);
   return ret_info;
 }
 region_t* extract_requests_generic(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
