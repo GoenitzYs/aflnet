@@ -423,7 +423,6 @@ static void destroy_tmp_queue(struct queue_entry *q);
 static void traverse_queue(char **argv);
 
 EXP_ST u8 *p_file;
-protocol_info_t p_info;
 //END OF DIY
 
 /* Initialize the implemented state machine as a graphviz graph */

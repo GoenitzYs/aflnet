@@ -13,6 +13,7 @@
 #include "aflnet.h"
 
 static u8 *tmp_pfile = "protocol_info";
+protocol_info_t *p_info;
 // Protocol-specific functions for extracting requests and responses
 
 region_t* extract_requests_tftp(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
@@ -1503,7 +1504,7 @@ unsigned int* extract_response_codes_generic(unsigned char* buf, unsigned int bu
 
 unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
 {
-  protocol_info_t *p_info = NULL;
+
 
   char *mem;
   unsigned int byte_count = 0;
