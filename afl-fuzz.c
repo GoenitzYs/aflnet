@@ -9776,10 +9776,10 @@ int main(int argc, char** argv) {
     FATAL("Use AFL_PRELOAD instead of AFL_LD_PRELOAD");
 
   //DIY
-  if (access("protocol_info", F_OK) == 0) 
-    remove("protocol_info");
+  // if (access("protocol_info", F_OK) == 0) 
+  //   remove("protocol_info");
   if(p_file) 
-    get_pfile(p_file);
+    read_pfile2(p_file);
   //END OF DIY
 
   save_cmdline(argc, argv);

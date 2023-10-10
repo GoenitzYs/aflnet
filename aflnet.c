@@ -14,6 +14,9 @@
 
 static u8 *tmp_pfile = "protocol_info";
 protocol_info_t *p_info;
+protocol_info_t2 *p_info2;
+msg_symbol *head;
+msg_symbol *tail;
 // Protocol-specific functions for extracting requests and responses
 
 region_t* extract_requests_tftp(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
@@ -1334,6 +1337,20 @@ region_t* extract_requests_pop3(unsigned char* buf, unsigned int buf_size, unsig
 
 
 //DIY
+bool check_head(msg_symbol *symbols, char *target, unsigned int symbols_length,  unsigned int target_length){
+  for(unsigned int i =0; i < symbols_length, i++){
+    if(target_length >= symbols[i]->length && memcmp(target, symbols[i]->symbol, symbols[i]->length)==0)
+      return true;
+  }
+  return false;
+}
+bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length){
+  for(unsigned int i =0; i < symbols_length, i++){
+    if(memcmp(target - symbols[i]->length, symbols[i]->symbol, symbols[i]->length)==0)
+      return true;
+  }
+  return false;
+}
 
 void get_pfile(char *f_name){
   protocol_info_t ret_info;
@@ -1382,6 +1399,217 @@ protocol_info_t *read_pfile(char *f_name){
   fclose(save_file);
   return ret_info;
 }
+
+void read_pfile2(char *f_name){
+  char line[256];
+  p_info2 = ck_alloc(sizeof(protocol_info_t2));
+  FILE *p_file = fopen(f_name, "r");
+  char *mem;
+  
+
+  int n_tokens = 0;
+  int cur_pos = 0;
+
+  int i = 0;
+  int k = 0;
+  while(fgets(line, 256, p_file)){
+    switch(i){
+      case 0:
+      case 1:
+        n_tokens = 0
+        for(int j = 0; line[j] != '\0'; j++)
+        if(line[j] == ' ')
+        n_tokens++;
+
+        if(n_tokens){
+          n_tokens++;
+          p_info2->symbols[i] = ck_alloc(sizeof(msg_symbol) * n_tokens);
+          p_info2->symbols_len[i] = n_tokens;
+
+          cur_pos = 0;
+          k = 0;
+          for(int j = 0; line[j] != '\0'; j++){
+            if(line[j] == ' '){
+              t_symbol[i][k]->length = j - cur_pos;
+              memcpy(p_info2->symbols[i][k]->symbol, line[cur_pos], j-cur_pos);
+              cur_pos = ++j;
+              k++;
+            }
+          }
+        }
+        break;
+
+      case 5:
+        p_info2->recv_header = ck_alloc(sizeof(msg_symbol));
+        for(k = 0; line[k] != '\0'; k++);
+        p_info2->recv_header->length = k;
+        if(k) memcpy(p_info2->recv_header->symbol, line, sizeof(char) * k);
+        break;
+      default:
+        p_info2->numeric_info[i] = atoi(line);
+    }
+  }
+
+  fclose(p_file);
+  return;
+}
+
+region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
+{
+  char *mem;
+  unsigned int byte_count = 0;
+  unsigned int mem_count = 0;
+  unsigned int mem_size = 1024;
+  unsigned int region_count = 0;
+  region_t *regions = NULL;
+  char terminator[2] = {0x0D, 0x0A};
+
+  mem=(char *)ck_alloc(mem_size);
+
+  unsigned int cur_start = 0;
+  unsigned int cur_end = 0;
+  while (byte_count < buf_size) {
+
+    memcpy(&mem[mem_count], buf + byte_count++, 1);
+
+    //Check if the last two bytes are 0x0D0A
+    // if ((mem_count > 1) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) {
+    if(
+      (mem_count > 1) &&
+      ( 
+        (
+          p_info2 &&
+          (!(p_info2->symbols[0]) || check_head(p_info2->symbols[0], buf + byte_count, p_info2->symbols_length, buf_size - byte_count)) &&
+          (!(p_info2->symbols[1]) || check_tail(p_info2->symbols[1], buf + &mem[mem_count], p_info2->symbols_length))
+        ) ||       
+        (memcmp(&mem[mem_count - 1], terminator, 2) == 0)
+      )
+    ){
+      region_count++;
+      regions = (region_t *)ck_realloc(regions, region_count * sizeof(region_t));
+      regions[region_count - 1].start_byte = cur_start;
+      regions[region_count - 1].end_byte = cur_end;
+      regions[region_count - 1].state_sequence = NULL;
+      regions[region_count - 1].state_count = 0;
+
+      mem_count = 0;
+      cur_start = cur_end + 1;
+      cur_end = cur_start;
+    } else {
+      mem_count++;
+      cur_end++;
+
+      //Check if the last byte has been reached
+      if (cur_end == buf_size - 1) {
+        region_count++;
+        regions = (region_t *)ck_realloc(regions, region_count * sizeof(region_t));
+        regions[region_count - 1].start_byte = cur_start;
+        regions[region_count - 1].end_byte = cur_end;
+        regions[region_count - 1].state_sequence = NULL;
+        regions[region_count - 1].state_count = 0;
+        break;
+      }
+
+      if (mem_count == mem_size) {
+        //enlarge the mem buffer
+        mem_size = mem_size * 2;
+        mem=(char *)ck_realloc(mem, mem_size);
+      }
+    }
+  }
+  if (mem) ck_free(mem);
+
+  //in case region_count equals zero, it means that the structure of the buffer is broken
+  //hence we create one region for the whole buffer
+  if ((region_count == 0) && (buf_size > 0)) {
+    regions = (region_t *)ck_realloc(regions, sizeof(region_t));
+    regions[0].start_byte = 0;
+    regions[0].end_byte = buf_size - 1;
+    regions[0].state_sequence = NULL;
+    regions[0].state_count = 0;
+
+    region_count = 1;
+  }
+
+  *region_count_ref = region_count;
+  return regions;
+}
+
+unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
+{
+
+
+  char *mem;
+  unsigned int byte_count = 0;
+  unsigned int mem_count = 0;
+  unsigned int mem_size = 1024;
+  unsigned int *state_sequence = NULL;
+  unsigned int state_count = 0;
+  char terminator[2] = {0x0D, 0x0A};
+
+  mem=(char *)ck_alloc(mem_size);
+
+  state_count++;
+  state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
+  state_sequence[state_count - 1] = 0;
+
+  unsigned int min_seq_len = 5;
+  unsigned int max_sat_len = 3;
+  unsigned int sat_offset = 0;
+  unsigned int header_len = 0;
+  char *header = NULL;
+
+
+  if(!p_info && !access("protocol_info", F_OK)){
+    p_info = read_pfile("protocol_info");
+  }
+  
+  if(p_info2){
+    min_seq_len = p_info2->numeric_info[0];
+    max_sat_len = p_info2->numeric_info[1];
+    sat_offset = p_info2->numeric_info[2];
+
+    if(p_info2->header_length){
+      header = p_info2->header;
+      header_len = p_info2->header_length;
+    }
+  }
+
+  while(byte_count < buf_size) {
+    memcpy(&mem[mem_count], buf + byte_count++, 1);
+
+    if ((mem_count > 0) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) {
+      if(mem_count >= min_seq_len && (!header || (memcmp(&mem, header, header_len) == 0))){
+        //Extract the response code which is the first 3 bytes
+        char temp[max_sat_len+1];
+        memcpy(temp, mem + sat_offset, sizeof(char) * max_sat_len);
+        temp[max_sat_len] = 0x0;
+        unsigned int message_code = get_hash_from_string(temp);
+
+        if(message_code == 0) break;
+
+        state_count++;
+        state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
+        state_sequence[state_count - 1] = message_code;
+        mem_count = 0;
+      }
+      else
+      mem_count = 0;
+    } else {
+      mem_count++;
+      if(mem_count == mem_size) {
+        //enlarge the mem buffer
+        mem_size = mem_size * 2;
+        mem=(char *)ck_realloc(mem, mem_size);
+      }
+    }
+  }
+  if(mem) ck_free(mem);
+  *state_count_ref = state_count;
+  return state_sequence;
+}
+
+
 region_t* extract_requests_generic(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
 {
    char *mem;

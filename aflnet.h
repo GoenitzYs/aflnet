@@ -40,6 +40,22 @@ typedef struct {
   unsigned int header_length;
   char header[256];
 } protocol_info_t;
+
+
+
+typedef struct {
+  unsigned int length;
+  char symbol[32];
+} msg_symbol;
+
+typedef struct {
+  // header and tail
+  unsigned int symbols_len[2]
+  msg_symbol* symbols[2];
+  unsigned int numeric_info[3];
+  msg_symbol* recv_header;
+} protocol_info_t2;
+
 //END OF DIY
 
 enum {
@@ -96,6 +112,12 @@ unsigned int get_hash_from_string(char* buf);
 unsigned int* extract_response_codes_generic(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
 unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
 region_t* extract_requests_generic(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
+// add new features
+bool check_head(msg_symbol *symbols, char *target, unsigned int symbols_length,  unsigned int target_length);
+bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length);
+void read_pfile2(char *f_name);
+region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
+unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
 //END OF DIY
 
 extern unsigned int* (*extract_response_codes)(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
