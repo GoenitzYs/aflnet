@@ -1,8 +1,7 @@
 #ifndef __AFLNET_H
 #define __AFLNET_H 1
 
-#include <stdio.h>
-#include <unistd.h>
+
 
 #include "klist.h"
 #include "khash.h"
@@ -38,7 +37,8 @@ typedef struct {
 //DIY
 typedef struct {
   unsigned int numeric_info[3];
-  char *header;
+  unsigned int header_length;
+  char header[256];
 } protocol_info_t;
 //END OF DIY
 

@@ -1351,20 +1351,24 @@ void get_pfile(char *f_name){
     }
     else{
       for(j = 0; line[j] != '\0'; j++);
-      ret_info.header = ck_alloc(sizeof(char) * j);
-      memcpy(ret_info.header, line, sizeof(char) * j);
+      ret_info.header_length = j;
+      if(ret_info.header_length){
+        memcpy(ret_info.header, line, sizeof(char) * j);
+      }
     }
     i++;
   }
   fclose(textfile);
 
   save_file = fopen("protocol_info", "wb");
-  nwritten = fwrite(&ret_info, sizeof(ret_info), 1, save_file);
-  if (nwritten < 1){
-      fprintf(stderr, "Writing to protocol file failed.\n");
-      exit(1);
+  if(save_file != NULL){
+    nwritten = fwrite(&ret_info, sizeof(protocol_info_t), 1, save_file);
+    if (nwritten < 1){
+        fprintf(stderr, "Writing to protocol file failed.\n");
+        exit(1);
+    }
+    fclose(save_file);
   }
-  fclose(save_file);
 
   return;
 }
@@ -1519,7 +1523,7 @@ unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int 
   unsigned int max_sat_len = 3;
   unsigned int sat_offset = 0;
   unsigned int header_len = 0;
-  char *header;
+  char *header = NULL;
 
 
   if(access("protocol_info", F_OK) == 0){
@@ -1531,7 +1535,7 @@ unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int 
     max_sat_len = p_info->numeric_info[1];
     sat_offset = p_info->numeric_info[2];
 
-    if(p_info->header){
+    if(p_info->header_length){
       header = p_info->header;
       header_len = sizeof(header);
     }
