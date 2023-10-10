@@ -1359,9 +1359,10 @@ void get_pfile(char *f_name){
 
   save_file = fopen("protocol_info", "wb");
   nwritten = fwrite(&ret_info, sizeof(ret_info), 1, save_file);
-  if (nwritten < 1)
-      fprintf(stderr, "Writing to file failed.\n");
+  if (nwritten < 1){
+      fprintf(stderr, "Writing to protocol file failed.\n");
       exit(1);
+  }
 
   return;
 }
