@@ -7,6 +7,7 @@
 #include "khash.h"
 #include <arpa/inet.h>
 #include <poll.h>
+#include <stdbool.h>
 
 typedef struct {
   int start_byte;                 /* The start byte, negative if unknown. */
@@ -45,12 +46,12 @@ typedef struct {
 
 typedef struct {
   unsigned int length;
-  char symbol[32];
+  unsigned char symbol[32];
 } msg_symbol;
 
 typedef struct {
   // header and tail
-  unsigned int symbols_len[2]
+  unsigned int symbols_length[2];
   msg_symbol* symbols[2];
   unsigned int numeric_info[3];
   msg_symbol* recv_header;

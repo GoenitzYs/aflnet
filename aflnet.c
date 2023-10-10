@@ -1338,15 +1338,15 @@ region_t* extract_requests_pop3(unsigned char* buf, unsigned int buf_size, unsig
 
 //DIY
 bool check_head(msg_symbol *symbols, char *target, unsigned int symbols_length,  unsigned int target_length){
-  for(unsigned int i =0; i < symbols_length, i++){
-    if(target_length >= symbols[i]->length && memcmp(target, symbols[i]->symbol, symbols[i]->length)==0)
+  for(unsigned int i =0; i < symbols_length; i++){
+    if(target_length >= symbols[i].length && memcmp(target, symbols[i].symbol, symbols[i].length)==0)
       return true;
   }
   return false;
 }
 bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length){
-  for(unsigned int i =0; i < symbols_length, i++){
-    if(memcmp(target - symbols[i]->length, symbols[i]->symbol, symbols[i]->length)==0)
+  for(unsigned int i =0; i < symbols_length; i++){
+    if(memcmp(target - symbols[i].length, symbols[i].symbol, symbols[i].length)==0)
       return true;
   }
   return false;
@@ -1415,9 +1415,9 @@ void read_pfile2(char *f_name){
   int k = 0;
   while(fgets(line, 256, p_file)){
     switch(i){
-      case 0:
-      case 1:
-        n_tokens = 0
+      case 4:
+      case 5:
+        n_tokens = 0;
         for(j = 0; line[j] != '\0'; j++){
           if(line[j] == ' ')
             n_tokens++;
@@ -1425,25 +1425,25 @@ void read_pfile2(char *f_name){
 
         if(j){
           n_tokens++;
-          p_info2->symbols[i] = ck_alloc(sizeof(msg_symbol) * n_tokens);
-          p_info2->symbols_len[i] = n_tokens;
+          p_info2->symbols[i-3] = ck_alloc(sizeof(msg_symbol) * n_tokens);
+          p_info2->symbols_length[i-3] = n_tokens;
 
           cur_pos = 0;
           k = 0;
           for(j = 0; line[j] != '\0'; j++){
             if(line[j] == ' '){
-              t_symbol[i][k]->length = j - cur_pos;
-              memcpy(p_info2->symbols[i][k]->symbol, line[cur_pos], j-cur_pos);
+              p_info2->symbols[i-3][k].length = j - cur_pos;
+              memcpy(p_info2->symbols[i-3][k].symbol, line[cur_pos], j-cur_pos);
               cur_pos = ++j;
               k++;
             }
           }
-          t_symbol[i][k]->length = j - cur_pos;
-          memcpy(p_info2->symbols[i][k]->symbol, line[cur_pos], j - cur_pos);
+          p_info2->symbols[i-3][k].length = j - cur_pos;
+          memcpy(p_info2->symbols[i][k].symbol, line[cur_pos], j - cur_pos);
         }
         break;
 
-      case 5:
+      case 3:
         p_info2->recv_header = ck_alloc(sizeof(msg_symbol));
         for(k = 0; line[k] != '\0'; k++);
         p_info2->recv_header->length = k;
@@ -1452,6 +1452,7 @@ void read_pfile2(char *f_name){
       default:
         p_info2->numeric_info[i] = atoi(line);
     }
+  i++;
   }
 
   fclose(p_file);
@@ -1484,7 +1485,7 @@ region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, 
         (
           p_info2 &&
           (!(p_info2->symbols[0]) || check_head(p_info2->symbols[0], buf + byte_count, p_info2->symbols_length, buf_size - byte_count)) &&
-          ((!(p_info2->symbols[1]) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) || check_tail(p_info2->symbols[1], buf + &mem[mem_count], p_info2->symbols_length))
+          ((!(p_info2->symbols[1]) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) || check_tail(p_info2->symbols[1], &mem[mem_count], p_info2->symbols_length))
         ) ||       
         (memcmp(&mem[mem_count - 1], terminator, 2) == 0)
       )
@@ -1573,9 +1574,9 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
     max_sat_len = p_info2->numeric_info[1];
     sat_offset = p_info2->numeric_info[2];
 
-    if(p_info2->header_length){
-      header = p_info2->header;
-      header_len = p_info2->header_length;
+    if(p_info2->recv_header){
+      header_len = p_info2->recv_header->length;
+      header = p_info2->recv_header->symbol;
     }
   }
 
