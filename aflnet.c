@@ -1593,8 +1593,8 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
   unsigned int min_seq_len = 5;
   unsigned int max_sat_len = 3;
   unsigned int sat_offset = 0;
-  unsigned int header_len = 7;
-  char *header;
+  unsigned int header_len = 0;
+  char *header = NULL;
 
   mem=(char *)ck_alloc(mem_size);
 
@@ -1619,7 +1619,7 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
     memcpy(&mem[mem_count], buf + byte_count++, 1);
 
     if ((mem_count > 0) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) {
-      if(mem_count >= min_seq_len && (!header || (memcmp(&mem, header, header_len) == 0))){
+      if(mem_count >= min_seq_len && (!header || (memcmp(mem, header, header_len) == 0))){
         //Extract the response code which is the first 3 bytes
         char temp[max_sat_len+1];
         memcpy(temp, mem + sat_offset, sizeof(char) * max_sat_len);
