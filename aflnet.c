@@ -1610,8 +1610,8 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
     sat_offset = p_info2->numeric_info[2];
 
     if(p_info2->recv_header){
-      header_len = p_info2->recv_header.length;
-      header = p_info2->recv_header.symbol;
+      header_len = *(p_info2->recv_header).length;
+      header = *(p_info2->recv_header).symbol;
     }
   }
 
