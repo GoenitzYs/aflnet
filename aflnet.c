@@ -12,6 +12,9 @@
 #include "alloc-inl.h"
 #include "aflnet.h"
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
 static u8 *tmp_pfile = "protocol_info";
 protocol_info_t *p_info;
 protocol_info_t2 *p_info2;
@@ -1619,7 +1622,7 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
     memcpy(&mem[mem_count], buf + byte_count++, 1);
     // if the mem_count was too long then the message could cannot be identified.
     if ((mem_count > 0) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) {
-      if(mem_count >= min(recv_header_len, min_seq_len) && (!recv_header || (memcmp(mem, recv_header, recv_header_len) == 0))){
+      if(mem_count >= MIN(recv_header_len, min_seq_len) && (!recv_header || (memcmp(mem, recv_header, recv_header_len) == 0))){
         //Extract the response code which is the first 3 bytes
         char temp[max_sat_len+1];
         memcpy(temp, mem + sat_offset, sizeof(char) * max_sat_len);
