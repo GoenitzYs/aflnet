@@ -1593,8 +1593,8 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
   unsigned int min_seq_len = 5;
   unsigned int max_sat_len = 3;
   unsigned int sat_offset = 0;
-  unsigned int header_len;
-  char *header;
+  unsigned int header_len = 0;
+  char *header = 0;
 
   mem=(char *)ck_alloc(mem_size);
 
@@ -1610,8 +1610,8 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
     sat_offset = p_info2->numeric_info[2];
 
     if(p_info2->recv_header){
-      header_len = p_info2->recv_header->length;
-      header = p_info2->recv_header->symbol;
+      unsigned int header_len = p_info2->recv_header->length;
+      char *header = p_info2->recv_header->symbol;
     }
   }
 
