@@ -1354,10 +1354,11 @@ bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length){
 
 char *clean_txt(char* input, unsigned int start_pos, unsigned end_pos){
   // int txt_len = (ens_pos - start_pos);
+  input += start_pos;
   char* out = malloc(sizeof(char) * 256);
   int i = 0;
   int j = 0;
-  for(i = start_pos; i < end_pos; i++){
+  for(i = 0; i < end_pos - start_pos; i++){
     if(input[i] == '\\'){
       if(input[i+1] == 'r'){
         out[j] = '\r';
@@ -1457,7 +1458,7 @@ void read_pfile2(char *f_name){
             n_tokens++;
         }
 
-        if(j-1 > 0){
+        if(j > 1){
           n_tokens++;
           p_info2->symbols[i-4] = ck_alloc(sizeof(msg_symbol) * n_tokens);
           p_info2->symbols_length[i-4] = n_tokens;
