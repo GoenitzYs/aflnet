@@ -1466,7 +1466,7 @@ void read_pfile2(char *f_name){
           k = 0;
           for(j = 0; line[j] != '\0'; j++){
             if(line[j] == ' '){
-              char *outs = clean_txt(line + cur_pos)
+              char *outs = clean_txt(line + cur_pos);
               p_info2->symbols[i-4][k].length = strlen(outs);
               memcpy(p_info2->symbols[i-4][k].symbol, outs, strlen(outs));
               cur_pos = ++j;
@@ -1476,7 +1476,7 @@ void read_pfile2(char *f_name){
           // p_info2->symbols[i-4][k].length = j - cur_pos;
           // printf("%d\n", j);
           // memcpy(&(p_info2->symbols[i-4][k].symbol), clean_txt(line + cur_pos), j - cur_pos);
-          char *outs = clean_txt(line + cur_pos)
+          char *outs = clean_txt(line + cur_pos);
           p_info2->symbols[i-4][k].length = strlen(outs);
           memcpy(p_info2->symbols[i-4][k].symbol, outs, strlen(outs));
         }
