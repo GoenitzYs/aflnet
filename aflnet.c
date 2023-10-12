@@ -1358,7 +1358,7 @@ char *clean_txt(char* input, unsigned int start_pos, unsigned end_pos){
   char* out = ck_alloc(sizeof(char) * 256);
   int i = 0;
   int j = 0;
-  for(i < end_pos - start_pos){
+  while(i < end_pos - start_pos){
     if(input[i] == '\\'){
       if(input[i+1] == 'r'){
         out[j] = '\r';
