@@ -1352,12 +1352,12 @@ bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length){
   return false;
 }
 
-char *clean_txt(char* input){
-  int txt_len = strlen(input);
-  char* out = ck_alloc(sizeof(char) * txt_len);
+char *clean_txt(char* input, unsigned int start_pos, unsigned end_pos){
+  // int txt_len = (ens_pos - start_pos);
+  char* out = ck_alloc(sizeof(char) * (end_pos - start_pos));
   int i = 0;
   int j = 0;
-  while(i < txt_len){
+  while(i = start_pos, i < end_pos; i++){
     if(input[i] == '\\'){
       if(input[i+1] == 'r'){
         out[j] = '\r';
@@ -1466,16 +1466,19 @@ void read_pfile2(char *f_name){
           k = 0;
           for(j = 0; line[j] != '\0'; j++){
             if(line[j] == ' '){
-              char *outs = clean_txt(line + cur_pos);
+              char *outs = clean_txt(line, cur_pos, j);
               p_info2->symbols[i-4][k].length = strlen(outs);
-              memcpy(p_info2->symbols[i-4][k].symbol, outs, strlen(outs));
+              memcpy(&(p_info2->symbols[i-4][k].symbol), outs, strlen(outs));
+              // p_info2->symbols[i-4][k].length = j - cur_pos;
+              // // printf("%d\n", j);
+              // memcpy(&(p_info2->symbols[i-4][k].symbol), clean_txt(line, cur_pos, j), j - cur_pos);
               cur_pos = ++j;
               k++;
             }
           }
           // p_info2->symbols[i-4][k].length = j - cur_pos;
           // printf("%d\n", j);
-          // memcpy(&(p_info2->symbols[i-4][k].symbol), clean_txt(line + cur_pos), j - cur_pos);
+          // memcpy(&(p_info2->symbols[i-4][k].symbol), clean_txt(line, cur_pos, j), j - cur_pos);
           char *outs = clean_txt(line + cur_pos);
           p_info2->symbols[i-4][k].length = strlen(outs);
           memcpy(p_info2->symbols[i-4][k].symbol, outs, strlen(outs));
