@@ -1593,8 +1593,8 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
   unsigned int min_seq_len = 5;
   unsigned int max_sat_len = 3;
   unsigned int sat_offset = 0;
-  unsigned int header_len = 0;
-  char *header = NULL;
+  unsigned int header_len;
+  char *header;
 
   mem=(char *)ck_alloc(mem_size);
 
