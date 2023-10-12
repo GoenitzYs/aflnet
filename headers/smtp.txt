@@ -1,0 +1,6 @@
+6
+8
+0
+
+MAIL DATA RCPT EHLO cHVuamFiQDEyMw Z3VycGFydGFwQHBhdHJpb3RzLmlu AUTH QUIT
+\r\n ({0x0D, 0x0A})

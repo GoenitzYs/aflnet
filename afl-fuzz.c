@@ -9658,8 +9658,8 @@ int main(int argc, char** argv) {
           extract_requests = &extract_requests_pop3;
           extract_response_codes = &extract_response_codes_pop3;
         }else if (!strcmp(optarg, "TEXT")) {
-          extract_requests = &extract_requests_generic;
-          extract_response_codes = &extract_response_codes_generic_2;
+          extract_requests = &extract_requests_generic_2;
+          extract_response_codes = &extract_response_codes_generic_3;
         }
         
         else {

@@ -1352,6 +1352,31 @@ bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length){
   return false;
 }
 
+char *clean_txt(char* input){
+  int txt_len = strlen(input);
+  char* out = ck_alloc(sizeof(char) * txt_len);
+  int i = 0;
+  int j = 0;
+  while(i < txt_len){
+    if(input[i] == '\\'){
+      if(input[i+1] == 'r'){
+        out[j] = '\r';
+        i += 2;
+        j ++;
+        continue;
+      }
+      else if(input[i+1] == 'n'){
+        out[j] = '\n';
+        i += 2;
+        j++;
+        continue;
+      }
+    }
+    out[i++] = input[j++];
+  }
+  return out;
+}
+
 void get_pfile(char *f_name){
   protocol_info_t ret_info;
   char line[256];
@@ -1414,7 +1439,16 @@ void read_pfile2(char *f_name){
   int j = 0;
   int k = 0;
   while(fgets(line, 256, p_file)){
+    int line_len = strlen(line);
+    if (line_len > 0 && line[line_len-1] == '\n')
+      line[line_len-1] = '\0';
     switch(i){
+      case 3:
+        p_info2->recv_header = ck_alloc(sizeof(msg_symbol));
+        for(k = 0; line[k] != '\0'; k++);
+        p_info2->recv_header->length = k;
+        if(k) memcpy(p_info2->recv_header->symbol, line, sizeof(char) * k);
+        break;
       case 4:
       case 5:
         n_tokens = 0;
@@ -1423,32 +1457,28 @@ void read_pfile2(char *f_name){
             n_tokens++;
         }
 
-        if(j){
+        if(j-1 > 0){
           n_tokens++;
-          p_info2->symbols[i-3] = ck_alloc(sizeof(msg_symbol) * n_tokens);
-          p_info2->symbols_length[i-3] = n_tokens;
+          p_info2->symbols[i-4] = ck_alloc(sizeof(msg_symbol) * n_tokens);
+          p_info2->symbols_length[i-4] = n_tokens;
 
           cur_pos = 0;
           k = 0;
           for(j = 0; line[j] != '\0'; j++){
             if(line[j] == ' '){
-              p_info2->symbols[i-3][k].length = j - cur_pos;
-              memcpy(p_info2->symbols[i-3][k].symbol, line[cur_pos], j-cur_pos);
+              p_info2->symbols[i-4][k].length = j - cur_pos;
+              memcpy(p_info2->symbols[i-4][k].symbol, clean_txt(line + cur_pos), j-cur_pos);
               cur_pos = ++j;
               k++;
             }
           }
-          p_info2->symbols[i-3][k].length = j - cur_pos;
-          memcpy(p_info2->symbols[i][k].symbol, line[cur_pos], j - cur_pos);
+          p_info2->symbols[i-4][k].length = j - cur_pos;
+          printf("%d\n", j);
+          memcpy(&(p_info2->symbols[i-4][k].symbol), clean_txt(line + cur_pos), j - cur_pos);
         }
         break;
 
-      case 3:
-        p_info2->recv_header = ck_alloc(sizeof(msg_symbol));
-        for(k = 0; line[k] != '\0'; k++);
-        p_info2->recv_header->length = k;
-        if(k) memcpy(p_info2->recv_header->symbol, line, sizeof(char) * k);
-        break;
+
       default:
         p_info2->numeric_info[i] = atoi(line);
     }
@@ -1563,11 +1593,6 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
   unsigned int sat_offset = 0;
   unsigned int header_len = 0;
   char *header = NULL;
-
-
-  if(!p_info && !access("protocol_info", F_OK)){
-    p_info = read_pfile("protocol_info");
-  }
   
   if(p_info2){
     min_seq_len = p_info2->numeric_info[0];
