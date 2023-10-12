@@ -1346,7 +1346,7 @@ bool check_head(msg_symbol *symbols, char *target, unsigned int symbols_length, 
 }
 bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length){
   for(unsigned int i =0; i < symbols_length; i++){
-    if(memcmp(target - symbols[i].length, symbols[i].symbol, symbols[i].length)==0)
+    if(memcmp(target - symbols[i].length + 1, symbols[i].symbol, symbols[i].length)==0)
       return true;
   }
   return false;
@@ -1523,7 +1523,7 @@ region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, 
         (
           p_info2 &&
           ((!(p_info2->symbols[1]) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) || check_tail(p_info2->symbols[1], &mem[mem_count], p_info2->symbols_length[1])) &&
-          (!(p_info2->symbols[0]) || check_head(p_info2->symbols[0], buf + byte_count - 1, p_info2->symbols_length[0], buf_size - byte_count))
+          (!(p_info2->symbols[0]) || check_head(p_info2->symbols[0], buf + byte_count, p_info2->symbols_length[0], buf_size - byte_count))
         ) ||       
         (memcmp(&mem[mem_count - 1], terminator, 2) == 0)
       )
