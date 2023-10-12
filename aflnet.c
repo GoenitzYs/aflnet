@@ -1357,7 +1357,7 @@ char *clean_txt(char* input, unsigned int start_pos, unsigned end_pos){
   char* out = ck_alloc(sizeof(char) * (end_pos - start_pos));
   int i = 0;
   int j = 0;
-  while(i = start_pos; i < end_pos; i++){
+  for(i = start_pos; i < end_pos; i++){
     if(input[i] == '\\'){
       if(input[i+1] == 'r'){
         out[j] = '\r';
@@ -1479,7 +1479,7 @@ void read_pfile2(char *f_name){
           // p_info2->symbols[i-4][k].length = j - cur_pos;
           // printf("%d\n", j);
           // memcpy(&(p_info2->symbols[i-4][k].symbol), clean_txt(line, cur_pos, j), j - cur_pos);
-          char *outs = clean_txt(line + cur_pos);
+          char *outs = clean_txt(line, cur_pos, j);
           p_info2->symbols[i-4][k].length = strlen(outs);
           memcpy(p_info2->symbols[i-4][k].symbol, outs, strlen(outs));
         }
