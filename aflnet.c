@@ -1590,17 +1590,19 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
   unsigned int state_count = 0;
   char terminator[2] = {0x0D, 0x0A};
 
+  unsigned int min_seq_len = 5;
+  unsigned int max_sat_len = 3;
+  unsigned int sat_offset = 0;
+  unsigned int header_len = 0;
+  char *header = NULL;
+
   mem=(char *)ck_alloc(mem_size);
 
   state_count++;
   state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
   state_sequence[state_count - 1] = 0;
 
-  unsigned int min_seq_len = 5;
-  unsigned int max_sat_len = 3;
-  unsigned int sat_offset = 0;
-  unsigned int header_len = 0;
-  char *header = NULL;
+
   
   if(p_info2){
     min_seq_len = p_info2->numeric_info[0];
