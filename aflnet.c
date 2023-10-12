@@ -1355,7 +1355,7 @@ bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length){
 char *clean_txt(char* input, unsigned int start_pos, unsigned end_pos){
   // int txt_len = (ens_pos - start_pos);
   input += start_pos;
-  char* out = malloc(sizeof(char) * 256);
+  char* out = ck_alloc(sizeof(char) * 256);
   int i = 0;
   int j = 0;
   for(i = 0; i < end_pos - start_pos; i++){
