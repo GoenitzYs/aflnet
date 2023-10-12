@@ -1617,7 +1617,7 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
 
   while(byte_count < buf_size) {
     memcpy(&mem[mem_count], buf + byte_count++, 1);
-
+    // if the mem_count was too long then the message could cannot be identified.
     if ((mem_count > 0) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) {
       if(mem_count >= recv_header_len && (!recv_header || (memcmp(mem, recv_header, recv_header_len) == 0))){
         //Extract the response code which is the first 3 bytes
