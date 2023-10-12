@@ -1611,7 +1611,7 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
 
     if(p_info2->recv_header != NULL){
       recv_header_len = sizeof(p_info2->recv_header->symbol);
-      memcpy(header, p_info2->recv_header->symbol, recv_header_len);
+      memcpy(recv_header, p_info2->recv_header->symbol, recv_header_len);
     }
   }
 
