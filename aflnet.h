@@ -50,6 +50,11 @@ typedef struct {
 } msg_symbol;
 
 typedef struct {
+  unsigned int num;
+  msg_symbol *msg;
+} msg_set;
+
+typedef struct {
   // header and tail
   unsigned int symbols_length[2];
   msg_symbol* symbols[2];
@@ -119,6 +124,9 @@ bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length);
 void read_pfile2(char *f_name);
 region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
 unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
+
+
+
 //END OF DIY
 
 extern unsigned int* (*extract_response_codes)(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
@@ -142,6 +150,8 @@ region_t* extract_requests_SNMP(unsigned char* buf, unsigned int buf_size, unsig
 
 region_t* extract_requests_mqtt(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
 region_t* extract_requests_pop3(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
+
+
 
 
 extern region_t* (*extract_requests)(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);

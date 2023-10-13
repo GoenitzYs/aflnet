@@ -1497,6 +1497,47 @@ void read_pfile2(char *f_name){
   return;
 }
 
+msg_set *read_keyword(char* f_name){
+  char line[1024];
+  int i = 0;
+  int n = 0;
+  int cur_pos = 0;
+  msg_set *err_keywords;
+  msg_symbol * keyword;
+  FILE *p_file = fopen(f_name, "r");
+  while(fgets(line, 1024, p_file)){
+    int line_len = strlen(line);
+    if (line_len > 0 && line[line_len-1] == '\n')
+      line[line_len-1] = '\0';
+    if (line_len > 0){
+      cur_pos = 0;
+      for(i = 0; line[i] != '\0'; i++){
+        if(line[i] == ' '){
+          keyword = ck_realloc(keyword, sizeof(msg_symbol) * (n+1));
+          memcpy(keyword[n].symbol, line[cur_pos], i-cur_pos);
+          keyword[n].length = i-cur_pos;
+          
+          n += 1;
+          cur_pos = i+1;
+          i += 2;
+        }
+      }
+      keyword = ck_realloc(keyword, sizeof(msg_symbol) * (n+1));
+      memcpy(keyword[n].symbol, line[cur_pos], i-cur_pos);
+      keyword[n].length = i-cur_pos;
+      n += 1;
+    }
+  }
+
+  if(n){
+    err_keywords = ck_alloc(sizeof(msg_set));
+    err_keywords->num = n;
+    err_keywords->msg = keyword;
+  }
+  fclose(p_file);
+  return err_keywords;
+}
+
 region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
 {
   char *mem;
