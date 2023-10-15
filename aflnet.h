@@ -62,6 +62,12 @@ typedef struct {
   msg_symbol* recv_header;
 } protocol_info_t2;
 
+// add queue structure for error states.
+typedef struct {
+    unsigned int code;
+    hash_queue *next;
+}hash_queue;
+
 //END OF DIY
 
 enum {

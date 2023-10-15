@@ -17,6 +17,8 @@ protocol_info_t *p_info;
 protocol_info_t2 *p_info2;
 msg_symbol *head;
 msg_symbol *tail;
+hash_queue *err_queues;
+unsigned int err_counts = 0;
 // Protocol-specific functions for extracting requests and responses
 
 region_t* extract_requests_tftp(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
@@ -1536,6 +1538,9 @@ msg_set *read_keyword(char* f_name){
   }
   fclose(p_file);
   return err_keywords;
+}
+bool check_filter_keyword(msg_set* keywords, ){
+    return false;
 }
 
 region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
