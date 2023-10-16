@@ -63,10 +63,10 @@ typedef struct {
 } protocol_info_t2;
 
 // add queue structure for error states.
-typedef struct {
+struct hash_queue {
     unsigned int code;
-    hash_queue *next;
-}hash_queue;
+    struct hash_queue *next;
+};
 
 //END OF DIY
 
@@ -118,16 +118,22 @@ unsigned int* extract_response_codes_pop3(unsigned char* buf, unsigned int buf_s
 
 
 //DIY
-void get_pfile(char *f_name);
-protocol_info_t *read_pfile(char *f_name);
-unsigned int get_hash_from_string(char* buf);
-unsigned int* extract_response_codes_generic(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
-unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
-region_t* extract_requests_generic(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
+
 // add new features
 bool check_head(msg_symbol *symbols, char *target, unsigned int symbols_length,  unsigned int target_length);
 bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length);
+bool check_err_hash(unsigned int x);
+unsigned int get_hash_from_string(char* buf);
+
+
+void get_pfile(char *f_name);
+protocol_info_t *read_pfile(char *f_name);
 void read_pfile2(char *f_name);
+
+unsigned int* extract_response_codes_generic(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
+unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
+region_t* extract_requests_generic(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
+
 region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
 unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
 

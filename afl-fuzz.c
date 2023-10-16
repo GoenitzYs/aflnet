@@ -510,7 +510,8 @@ u8 is_state_sequence_interesting(unsigned int *state_sequence, unsigned int stat
   u32 *trimmed_state_sequence = NULL;
   u32 i, count = 0;
   for (i=0; i < state_count; i++) {
-    if ((i >= 2) && (state_sequence[i] == state_sequence[i - 1]) && (state_sequence[i] == state_sequence[i - 2])) continue;
+    if ((i >= 2) && (state_sequence[i] == state_sequence[i - 1]) && (state_sequence[i] == state_sequence[i - 2])
+    && check_err_hash(state_sequence[i])) continue;
     count++;
     trimmed_state_sequence = (u32 *)realloc(trimmed_state_sequence, count * sizeof(unsigned int));
     trimmed_state_sequence[count - 1] = state_sequence[i];

@@ -17,7 +17,9 @@ protocol_info_t *p_info;
 protocol_info_t2 *p_info2;
 msg_symbol *head;
 msg_symbol *tail;
-hash_queue *err_queues;
+msg_set *keyword_lists;
+struct hash_queue *err_queues;
+struct hash_queue *cur_err_queue;
 unsigned int err_counts = 0;
 // Protocol-specific functions for extracting requests and responses
 
@@ -1353,7 +1355,6 @@ bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length){
   }
   return false;
 }
-
 char *clean_txt(char* input, unsigned int start_pos, unsigned end_pos){
   // int txt_len = (ens_pos - start_pos);
   input += start_pos;
@@ -1378,6 +1379,24 @@ char *clean_txt(char* input, unsigned int start_pos, unsigned end_pos){
     out[j++] = input[i++];
   }
   return out;
+}
+
+bool check_keyword(msg_set* keywords, char *sequence){
+    for(int i = 0; i < keywords->num; i++){
+        if(strstr(sequence, keywords->msg[i].symbol) != NULL)
+            return true;
+    }
+    return false;
+}
+
+bool check_err_hash(unsigned int x){
+    struct hash_queue *q = err_queues;
+    while(q){
+        if(q->code == x)
+            return true;
+        q = q->next;
+    }
+    return false;
 }
 
 void get_pfile(char *f_name){
@@ -1427,7 +1446,6 @@ protocol_info_t *read_pfile(char *f_name){
   fclose(save_file);
   return ret_info;
 }
-
 void read_pfile2(char *f_name){
   char line[256];
   p_info2 = ck_alloc(sizeof(protocol_info_t2));
@@ -1498,7 +1516,6 @@ void read_pfile2(char *f_name){
   fclose(p_file);
   return;
 }
-
 msg_set *read_keyword(char* f_name){
   char line[1024];
   int i = 0;
@@ -1539,9 +1556,7 @@ msg_set *read_keyword(char* f_name){
   fclose(p_file);
   return err_keywords;
 }
-bool check_filter_keyword(msg_set* keywords, ){
-    return false;
-}
+
 
 region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
 {
@@ -1623,78 +1638,6 @@ region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, 
   *region_count_ref = region_count;
   return regions;
 }
-
-unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
-{
-
-
-  char *mem;
-  unsigned int byte_count = 0;
-  unsigned int mem_count = 0;
-  unsigned int mem_size = 1024;
-  unsigned int *state_sequence = NULL;
-  unsigned int state_count = 0;
-  char terminator[2] = {0x0D, 0x0A};
-
-  unsigned int min_seq_len = 5;
-  unsigned int max_sat_len = 3;
-  unsigned int sat_offset = 0;
-  static unsigned int recv_header_len;
-  char *recv_header = ck_alloc(sizeof(char) * 32);
-
-  mem=(char *)ck_alloc(mem_size);
-
-  state_count++;
-  state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
-  state_sequence[state_count - 1] = 0;
-
-
-  
-  if(p_info2){
-    min_seq_len = p_info2->numeric_info[0];
-    max_sat_len = p_info2->numeric_info[1];
-    sat_offset = p_info2->numeric_info[2];
-
-    if(p_info2->recv_header != NULL){
-      recv_header_len = strlen(p_info2->recv_header->symbol);
-      memcpy(recv_header, p_info2->recv_header->symbol, recv_header_len);
-    }
-  }
-
-  while(byte_count < buf_size) {
-    memcpy(&mem[mem_count], buf + byte_count++, 1);
-    // if the mem_count was too long then the message could cannot be identified.
-    if ((mem_count > 0) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) {
-      if(mem_count >= recv_header_len && (!recv_header || (memcmp(mem, recv_header, recv_header_len) == 0))){
-        //Extract the response code which is the first 3 bytes
-        char temp[max_sat_len+1];
-        memcpy(temp, mem + sat_offset, sizeof(char) * max_sat_len);
-        temp[max_sat_len] = 0x0;
-        unsigned int message_code = get_hash_from_string(temp);
-
-        if(message_code == 0) break;
-
-        state_count++;
-        state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
-        state_sequence[state_count - 1] = message_code;
-        mem_count = 0;
-      }
-      else
-      mem_count = 0;
-    } else {
-      mem_count++;
-      if(mem_count == mem_size) {
-        //enlarge the mem buffer
-        mem_size = mem_size * 2;
-        mem=(char *)ck_realloc(mem, mem_size);
-      }
-    }
-  }
-  if(mem) ck_free(mem);
-  *state_count_ref = state_count;
-  return state_sequence;
-}
-
 
 region_t* extract_requests_generic(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
 {
@@ -1888,6 +1831,88 @@ unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int 
   if(mem) ck_free(mem);
   *state_count_ref = state_count;
   return state_sequence;
+}
+
+unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
+{
+
+
+    char *mem;
+    unsigned int byte_count = 0;
+    unsigned int mem_count = 0;
+    unsigned int mem_size = 1024;
+    unsigned int *state_sequence = NULL;
+    unsigned int state_count = 0;
+    char terminator[2] = {0x0D, 0x0A};
+
+    unsigned int min_seq_len = 5;
+    unsigned int max_sat_len = 3;
+    unsigned int sat_offset = 0;
+    static unsigned int recv_header_len;
+    char *recv_header = ck_alloc(sizeof(char) * 32);
+
+    mem=(char *)ck_alloc(mem_size);
+
+    state_count++;
+    state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
+    state_sequence[state_count - 1] = 0;
+
+
+
+    if(p_info2){
+        min_seq_len = p_info2->numeric_info[0];
+        max_sat_len = p_info2->numeric_info[1];
+        sat_offset = p_info2->numeric_info[2];
+
+        if(p_info2->recv_header != NULL){
+            recv_header_len = strlen(p_info2->recv_header->symbol);
+            memcpy(recv_header, p_info2->recv_header->symbol, recv_header_len);
+        }
+    }
+
+    while(byte_count < buf_size) {
+        memcpy(&mem[mem_count], buf + byte_count++, 1);
+        // if the mem_count was too long then the message could not be identified.
+        if ((mem_count > 0) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) {
+            if(mem_count >= recv_header_len && (!recv_header || (memcmp(mem, recv_header, recv_header_len) == 0))){
+                //Extract the response code which is the first 3 bytes
+                char temp[max_sat_len+1];
+                memcpy(temp, mem + sat_offset, sizeof(char) * max_sat_len);
+                temp[max_sat_len] = 0x0;
+                unsigned int message_code = get_hash_from_string(temp);
+
+                if(message_code == 0) break;
+
+                state_count++;
+                state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
+                state_sequence[state_count - 1] = message_code;
+
+                mem[mem_count-1] = '\0';
+                if(keyword_lists){
+                    if(check_keyword(keyword_lists, mem) && !check_err_hash(message_code)){
+                        struct hash_queue *new_q = ck_alloc(sizeof(struct hash_queue));
+                        new_q->code = message_code;
+                        cur_err_queue->next = new_q;
+                        cur_err_queue = new_q;
+                    }
+                }
+
+                mem_count = 0;
+            }
+            else
+                mem_count = 0;
+        } else {
+            mem_count++;
+            if(mem_count == mem_size) {
+                //enlarge the mem buffer
+                mem_size = mem_size * 2;
+                mem=(char *)ck_realloc(mem, mem_size);
+            }
+        }
+    }
+    if(mem) ck_free(mem);
+    *state_count_ref = state_count;
+    return state_sequence;
 }
 
 //END OF DIY
