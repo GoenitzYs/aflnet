@@ -1381,9 +1381,10 @@ char *clean_txt(char* input, unsigned int start_pos, unsigned end_pos){
   return out;
 }
 
-bool check_keyword(msg_set* keywords, char *sequence){
+bool check_keyword(char *sequence){
+    if(!keyword_lists) return false;
     for(int i = 0; i < keywords->num; i++){
-        if(strstr(sequence, keywords->msg[i].symbol) != NULL)
+        if(strstr(sequence, keyword_lists->msg[i].symbol) != NULL)
             return true;
     }
     return false;
@@ -1516,12 +1517,11 @@ void read_pfile2(char *f_name){
   fclose(p_file);
   return;
 }
-msg_set *read_keyword(char* f_name){
+void read_keyword(char* f_name){
   char line[1024];
   int i = 0;
   int n = 0;
   int cur_pos = 0;
-  msg_set *err_keywords;
   msg_symbol * keyword;
   FILE *p_file = fopen(f_name, "r");
   while(fgets(line, 1024, p_file)){
@@ -1549,12 +1549,12 @@ msg_set *read_keyword(char* f_name){
   }
 
   if(n){
-    err_keywords = ck_alloc(sizeof(msg_set));
-    err_keywords->num = n;
-    err_keywords->msg = keyword;
+    keyword_lists = ck_alloc(sizeof(msg_set));
+    keyword_lists->num = n;
+    keyword_lists->msg = keyword;
   }
   fclose(p_file);
-  return err_keywords;
+  return;
 }
 
 
