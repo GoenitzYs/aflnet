@@ -13,8 +13,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6f90889d-088b-415d-8887-4b63a780beac" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/aflnet.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/aflnet.c" beforeDir="false" afterPath="$PROJECT_DIR$/aflnet.c" afterDir="false" />
     </list>
@@ -140,7 +138,8 @@
       <workItem from="1697387665907" duration="2108000" />
       <workItem from="1697424300429" duration="358000" />
       <workItem from="1697424866987" duration="5175000" />
-      <workItem from="1697439738411" duration="414000" />
+      <workItem from="1697439738411" duration="907000" />
+      <workItem from="1697463746477" duration="799000" />
     </task>
     <servers />
   </component>

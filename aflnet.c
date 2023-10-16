@@ -1865,7 +1865,7 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
     mem=(char *)ck_alloc(mem_size);
 
     state_count++;
-    state_sequence = (unsigned int *)ck_realloc(state_sequence, state_count * sizeof(unsigned int));
+    state_sequence = (unsigned int *)ck_alloc(state_count * sizeof(unsigned int));
     state_sequence[state_count - 1] = 0;
 
 
