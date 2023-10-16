@@ -1532,8 +1532,9 @@ void read_keyword(char* f_name){
       cur_pos = 0;
       for(i = 0; line[i] != '\0'; i++){
         if(line[i] == ' '){
-          keyword = ck_realloc(keyword, sizeof(msg_symbol) * (n+1));
-          memcpy(keyword[n].symbol, line[cur_pos], i-cur_pos);
+          if(n == 0) keyword = ck_alloc(sizeof(msg_symbol));
+          else keyword = ck_realloc(keyword, sizeof(msg_symbol) * (n+1));
+          memcpy(&(keyword[n].symbol), line + cur_pos, i-cur_pos);
           keyword[n].length = i-cur_pos;
           
           n += 1;
@@ -1541,8 +1542,9 @@ void read_keyword(char* f_name){
           i += 2;
         }
       }
-      keyword = ck_realloc(keyword, sizeof(msg_symbol) * (n+1));
-      memcpy(keyword[n].symbol, line[cur_pos], i-cur_pos);
+      if(n == 0) keyword = ck_alloc(sizeof(msg_symbol));
+      else keyword = ck_realloc(keyword, sizeof(msg_symbol) * (n+1));
+      memcpy(&(keyword[n].symbol), line + cur_pos, i-cur_pos);
       keyword[n].length = i-cur_pos;
       n += 1;
     }
@@ -1891,9 +1893,15 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
                 if(keyword_lists){
                     if(check_keyword(mem) && !check_err_hash(message_code)){
                         struct hash_queue *new_q = ck_alloc(sizeof(struct hash_queue));
-                        new_q->code = message_code;
-                        cur_err_queue->next = new_q;
-                        cur_err_queue = new_q;
+                        if(!err_queues){
+                            err_queues = new_q;
+                            cur_err_queue = err_queues;
+                        }
+                        else{
+                            new_q->code = message_code;
+                            cur_err_queue->next = new_q;
+                            cur_err_queue = new_q;
+                        }
                     }
                 }
 
