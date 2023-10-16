@@ -129,6 +129,7 @@ unsigned int get_hash_from_string(char* buf);
 void get_pfile(char *f_name);
 protocol_info_t *read_pfile(char *f_name);
 void read_pfile2(char *f_name);
+void read_keyword(char* f_name);
 
 unsigned int* extract_response_codes_generic(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
 unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);

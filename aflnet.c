@@ -1383,7 +1383,7 @@ char *clean_txt(char* input, unsigned int start_pos, unsigned end_pos){
 
 bool check_keyword(char *sequence){
     if(!keyword_lists) return false;
-    for(int i = 0; i < keywords->num; i++){
+    for(int i = 0; i < keyword_lists->num; i++){
         if(strstr(sequence, keyword_lists->msg[i].symbol) != NULL)
             return true;
     }
@@ -1889,7 +1889,7 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
 
                 mem[mem_count-1] = '\0';
                 if(keyword_lists){
-                    if(check_keyword(keyword_lists, mem) && !check_err_hash(message_code)){
+                    if(check_keyword(mem) && !check_err_hash(message_code)){
                         struct hash_queue *new_q = ck_alloc(sizeof(struct hash_queue));
                         new_q->code = message_code;
                         cur_err_queue->next = new_q;
