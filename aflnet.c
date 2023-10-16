@@ -1385,11 +1385,17 @@ char *clean_txt(char* input, unsigned int start_pos, unsigned end_pos){
 }
 
 bool check_keyword(char *sequence){
+    char *seq = ck_alloc(sizeof(char) * strlen(sequence));
+    memcpy(seq, sequence, strlen(sequence));
+    for(int i = 0; i < strlen(seq); i++) seq[i] = tolower(seq[i]);
+
     if(!keyword_lists) return false;
     for(int i = 0; i < keyword_lists->num; i++){
-        if(strstr(sequence, keyword_lists->msg[i].symbol) != NULL)
+        if(strstr(seq, keyword_lists->msg[i].symbol) != NULL)
             return true;
     }
+
+    ck_free(seq);
     return false;
 }
 
