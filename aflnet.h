@@ -50,12 +50,23 @@ typedef struct {
 } msg_symbol;
 
 typedef struct {
+  unsigned int num;
+  msg_symbol *msg;
+} msg_set;
+
+typedef struct {
   // header and tail
   unsigned int symbols_length[2];
   msg_symbol* symbols[2];
   unsigned int numeric_info[3];
   msg_symbol* recv_header;
 } protocol_info_t2;
+
+// add queue structure for error states.
+struct hash_queue {
+    unsigned int code;
+    struct hash_queue *next;
+};
 
 //END OF DIY
 
@@ -107,18 +118,28 @@ unsigned int* extract_response_codes_pop3(unsigned char* buf, unsigned int buf_s
 
 
 //DIY
-void get_pfile(char *f_name);
-protocol_info_t *read_pfile(char *f_name);
-unsigned int get_hash_from_string(char* buf);
-unsigned int* extract_response_codes_generic(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
-unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
-region_t* extract_requests_generic(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
+
 // add new features
 bool check_head(msg_symbol *symbols, char *target, unsigned int symbols_length,  unsigned int target_length);
 bool check_tail(msg_symbol *symbols, char *target, unsigned int symbols_length);
+bool check_err_hash(unsigned int x);
+unsigned int get_hash_from_string(char* buf);
+
+
+void get_pfile(char *f_name);
+protocol_info_t *read_pfile(char *f_name);
 void read_pfile2(char *f_name);
+void read_keyword(char* f_name);
+
+unsigned int* extract_response_codes_generic(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
+unsigned int* extract_response_codes_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
+region_t* extract_requests_generic(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
+
 region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
 unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
+
+
+
 //END OF DIY
 
 extern unsigned int* (*extract_response_codes)(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref);
@@ -142,6 +163,8 @@ region_t* extract_requests_SNMP(unsigned char* buf, unsigned int buf_size, unsig
 
 region_t* extract_requests_mqtt(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
 region_t* extract_requests_pop3(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);
+
+
 
 
 extern region_t* (*extract_requests)(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref);

@@ -423,6 +423,7 @@ static void destroy_tmp_queue(struct queue_entry *q);
 static void traverse_queue(char **argv);
 
 EXP_ST u8 *p_file;
+EXP_ST u8 *err_kw_file;
 //END OF DIY
 
 /* Initialize the implemented state machine as a graphviz graph */
@@ -510,7 +511,8 @@ u8 is_state_sequence_interesting(unsigned int *state_sequence, unsigned int stat
   u32 *trimmed_state_sequence = NULL;
   u32 i, count = 0;
   for (i=0; i < state_count; i++) {
-    if ((i >= 2) && (state_sequence[i] == state_sequence[i - 1]) && (state_sequence[i] == state_sequence[i - 2])) continue;
+    if ((i >= 2) && (state_sequence[i] == state_sequence[i - 1]) && (state_sequence[i] == state_sequence[i - 2])
+    && check_err_hash(state_sequence[i])) continue;
     count++;
     trimmed_state_sequence = (u32 *)realloc(trimmed_state_sequence, count * sizeof(unsigned int));
     trimmed_state_sequence[count - 1] = state_sequence[i];
@@ -9398,7 +9400,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:QN:D:W:w:e:P:p:KEq:s:RFc:l:")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:QN:D:W:w:e:P:p:u:KEq:s:RFc:l:")) > 0)
 
     switch (opt) {
 
@@ -9675,6 +9677,11 @@ int main(int argc, char** argv) {
         p_file = optarg;
         break;
 
+      case 'u': /* protocol_file */
+        if (err_kw_file) FATAL("Multiple -i options not supported");
+        err_kw_file = optarg;
+        break;
+
       case 'K':
         if (terminate_child) FATAL("Multiple -K options not supported");
         terminate_child = 1;
@@ -9776,10 +9783,12 @@ int main(int argc, char** argv) {
     FATAL("Use AFL_PRELOAD instead of AFL_LD_PRELOAD");
 
   //DIY
-  // if (access("protocol_info", F_OK) == 0) 
+  // if (access("protocol_info", F_OK) == 0)
   //   remove("protocol_info");
   if(p_file) 
     read_pfile2(p_file);
+  if (access(err_kw_file, F_OK) == 0)
+    read_keyword(err_kw_file);
   //END OF DIY
 
   save_cmdline(argc, argv);
