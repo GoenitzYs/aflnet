@@ -428,6 +428,8 @@ static void traverse_queue(char **argv);
 
 void taint_mutation(u8 *in_buf);
 struct taint_queue *imp_taint_queue;
+struct taint_field *buf_msg_queue;
+struct taint_field *cur_msg;
 
 EXP_ST u8 *p_file;
 EXP_ST u8 *err_kw_file;
@@ -5940,14 +5942,34 @@ AFLNET_REGIONS_SELECTION:;
   }
 
   u32 in_buf_size = 0;
+  //DIY, Initialization
+  ck_free(buf_msg_queue);
+  buf_msg_queue = NULL;
+  cur_msg = buf_msg_queue;
+  //END OF DIY
   while (it != M2_next) {
     in_buf = (u8 *) ck_realloc (in_buf, in_buf_size + kl_val(it)->msize);
     if (!in_buf) PFATAL("AFLNet cannot allocate memory for in_buf");
     //Retrieve data from kl_messages to populate the in_buf
     memcpy(&in_buf[in_buf_size], kl_val(it)->mdata, kl_val(it)->msize);
 
+    //DIY, add message fields.
+    struct taint_field *in_field = ck_alloc(sizeof(taint_field));
+    in_field->offset = in_buf_size;
+    in_field->size = kl_val(it)->msize;
+    if(!cur_msg){
+      cur_msg = in_field;
+    }
+    else{
+      cur_msg->next = in_field;
+      cur_msg = cur_msg->next;
+    }
+    //END OF DIY
+
     in_buf_size += kl_val(it)->msize;
     it = kl_next(it);
+
+
   }
 
   orig_in = in_buf;
@@ -9385,22 +9407,43 @@ static void traverse_queue(char **argv){
 }
 
 //Function of Taint
-void taint_mutation(char ** argv, u8 *in_buf){
-    struct taint_queue *cur_q = imp_taint_queue;
-    while(cur_q){
-        if(check_taint(in_buf, cur_q->key)){
-            //get val field
-            u8 *out_buf =
-            val_offset = cur_q->val.offset;
-            val_size = cur_q->val.size;
-            //mutation step
-            //first, replace with default val and common_fuzz
+void single_mutate_step(u8 *in_buf, unsigned int offset, unsigned int size){
+  u8 *in_msg = in_buf + offset;
+  struct taint_queue *cur_q = imp_taint_queue;
+  while(cur_q){
+    if(check_taint(in_msg, cur_q->key)){
+        //get val field
+        char *val_val = cur_q->val;
+        unsigned int val_offset = cur_q->val.offset;
+        unsgined int val_size = cur_q->val.size;
+        //mutation step
+        //bookmarks
+        int m = UR(3);
+        swtich(m){
+          case 0:
 
+            break;
+          case 1:
 
-            if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;
+            break;
+          case 2:
 
+            break;
         }
+
+        //first, replace with default val and common_fuzz
+        if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;
+
     }
+  cur_q = cur_q->next;
+  }
+}
+
+void taint_mutation(char ** argv, u8 *in_buf){
+    
+    taint_field *msg_f = buf_msg_queue;
+  
+
 
 }
 //Function of Symbolic Execution

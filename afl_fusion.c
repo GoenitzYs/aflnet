@@ -71,7 +71,6 @@ struct taint_queue *read_taint(char* f_name){
 
         struct taint_queue *new_taint = ck_alloc(sizeof(taint_queue));
         if(!cur_taint){
-            taint_queue = new_taint;
             cur_taint = taint_queue;
         }
         else{
