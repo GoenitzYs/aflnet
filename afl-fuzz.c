@@ -417,7 +417,6 @@ unsigned int* (*extract_response_codes)(unsigned char* buf, unsigned int buf_siz
 region_t* (*extract_requests)(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref) = NULL;
 
 //DIY
-
 int state_flag = 1;
 struct queue_entry* tmp_q;
 struct queue_entry* add_tmp_queue(u8* fname, u32 len, u8 passed_det);
@@ -426,7 +425,7 @@ static void add_to_queue(u8* fname, u32 len, u8 passed_det);
 static void destroy_tmp_queue(struct queue_entry *q);
 static void traverse_queue(char **argv);
 
-void taint_mutation(u8 *in_buf);
+void taint_mutation(char ** argv, u8 *in_buf, unsigned int in_buf_size);
 struct taint_queue *imp_taint_queue;
 struct taint_field *buf_msg_queue;
 struct taint_field *cur_msg;
@@ -5945,7 +5944,7 @@ AFLNET_REGIONS_SELECTION:;
   //DIY, Initialization
   ck_free(buf_msg_queue);
   buf_msg_queue = NULL;
-  cur_msg = buf_msg_queue;
+  cur_msg = NULL;
   //END OF DIY
   while (it != M2_next) {
     in_buf = (u8 *) ck_realloc (in_buf, in_buf_size + kl_val(it)->msize);
@@ -5954,11 +5953,12 @@ AFLNET_REGIONS_SELECTION:;
     memcpy(&in_buf[in_buf_size], kl_val(it)->mdata, kl_val(it)->msize);
 
     //DIY, add message fields.
-    struct taint_field *in_field = ck_alloc(sizeof(taint_field));
+    struct taint_field *in_field = ck_alloc(sizeof(struct taint_field));
     in_field->offset = in_buf_size;
     in_field->size = kl_val(it)->msize;
     if(!cur_msg){
-      cur_msg = in_field;
+      buf_msg_queue = in_field;
+      cur_msg = buf_msg_queue;
     }
     else{
       cur_msg->next = in_field;
@@ -6003,6 +6003,59 @@ AFLNET_REGIONS_SELECTION:;
     goto havoc_stage;
 
   doing_det = 1;
+
+    /*********************************************
+   *                Taint Mutation               *
+   *********************************************/
+
+  //DIY, Taint Mutation
+  struct taint_field *msg_f = buf_msg_queue;
+  struct taint_queue *cur_q;
+  unsigned int offset, size;
+  u8 *in_msg = in_buf + offset;
+
+  while(msg_f){
+    cur_q = imp_taint_queue;
+    while(cur_q){
+      if(check_taint(in_msg, &cur_q->key)){
+        //get val field
+        char *val_val = cur_q->val.val;
+        unsigned int val_offset = cur_q->val.offset;
+        unsigned int val_size = cur_q->val.size;
+        unsigned int rand_offset_1, rand_offset_2;
+        //mutation step
+        //bookmarks
+        int m = UR(5);
+        switch (m) {
+          case 0:
+            rand_offset_2 = UR(in_buf_size - val_size);
+            memcpy(in_msg + val_offset, in_buf + rand_offset_2, val_size);
+            break;
+          case 1:
+            memcpy(in_msg + val_offset, val_val, val_size);
+            break;
+          case 2:
+            rand_offset_1 = UR(size - val_size);
+            memcpy(in_msg + rand_offset_1, val_val, val_size);
+            break;
+          case 3:
+            rand_offset_1 = UR(size - val_size);
+            rand_offset_2 = UR(in_buf_size - val_size);
+            memcpy(in_msg + rand_offset_1, in_buf + rand_offset_2, val_size);
+            break;
+          default:
+            break;
+        }
+
+        //first, replace with default val and common_fuzz
+        if (common_fuzz_stuff(argv, in_buf, in_buf_size)) goto abandon_entry;
+      }
+      cur_q = cur_q->next;
+    }
+    msg_f = msg_f->next;
+  }
+  //END OF DIY
+
 
   /*********************************************
    * SIMPLE BITFLIP (+dictionary construction) *
@@ -9407,54 +9460,54 @@ static void traverse_queue(char **argv){
 }
 
 //Function of Taint
-void single_mutate_step(u8 *in_buf, unsigned int in_buf_size, unsigned int offset, unsigned int size){
-  u8 *in_msg = in_buf + offset;
-  struct taint_queue *cur_q = imp_taint_queue;
-  while(cur_q){
-    if(check_taint(in_msg, cur_q->key)){
-        //get val field
-        char *val_val = cur_q->val;
-        unsigned int val_offset = cur_q->val.offset;
-        unsigned int val_size = cur_q->val.size;
-        //mutation step
-        //bookmarks
-        int m = UR(5);
-        swtich(m){
-          case 0:
-            unsigned int rand_offset = UR(in_buf_size - val_size);
-            memecpy(in_msg + val_offset, in_buf + rand_offset, val_size);
-            break;
-          case 1:
-            memcpy(in_msg + val_offset, val_val, val_size);
-            break;
-          case 2:
-            unsigned int rand_offset = UR(in_msg - val_size);
-            memcpy(in_msg + rand_offset, val_val, val_size);
-            break;
-          case 3:
-            unsigned int rand_offset_1 = UR(in_msg - val_size);
-            unsigned int rand_offset_2 = UR(in_buf_size - val_size);
-            memcpy(in_msg + rand_offset_1, in_buf + rand_offset_2, val_size);
-            break;
-          default:
-            break;
-        }
 
-        //first, replace with default val and common_fuzz
-        if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;
+// void taint_mutation(char ** argv, u8 *in_buf, unsigned int in_buf_size){
+//   struct taint_field *msg_f = buf_msg_queue;
+//   struct taint_queue *cur_q;
+//   unsigned int offset, size;
+//   u8 *in_msg = in_buf + offset;
 
-    }
-  cur_q = cur_q->next;
-  }
-}
+//   while(msg_f){
+//     cur_q = imp_taint_queue;
+//     while(cur_q){
+//       if(check_taint(in_msg, &cur_q->key)){
+//         //get val field
+//         char *val_val = cur_q->val.val;
+//         unsigned int val_offset = cur_q->val.offset;
+//         unsigned int val_size = cur_q->val.size;
+//         unsigned int rand_offset_1, rand_offset_2;
+//         //mutation step
+//         //bookmarks
+//         int m = UR(5);
+//         switch (m) {
+//           case 0:
+//             rand_offset_2 = UR(in_buf_size - val_size);
+//             memecpy(in_msg + val_offset, in_buf + rand_offset_2, val_size);
+//             break;
+//           case 1:
+//             memcpy(in_msg + val_offset, val_val, val_size);
+//             break;
+//           case 2:
+//             rand_offset_1 = UR(size - val_size);
+//             memcpy(in_msg + rand_offset_1, val_val, val_size);
+//             break;
+//           case 3:
+//             rand_offset_1 = UR(size - val_size);
+//             rand_offset_2 = UR(in_buf_size - val_size);
+//             memcpy(in_msg + rand_offset_1, in_buf + rand_offset_2, val_size);
+//             break;
+//           default:
+//             break;
+//         }
 
-void taint_mutation(char ** argv, u8 *in_buf){
-    
-    taint_field *msg_f = buf_msg_queue;
-  
-
-
-}
+//         //first, replace with default val and common_fuzz
+//         if (common_fuzz_stuff(argv, in_buf, in_buf_size)) goto abandon_entry;
+//       }
+//       cur_q = cur_q->next;
+//     }
+//   msg_f = msg_f->next;
+//   }
+// }
 //Function of Symbolic Execution
 
 //END OF DIY

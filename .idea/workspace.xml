@@ -13,10 +13,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6f90889d-088b-415d-8887-4b63a780beac" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/afl_fusion.c" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/afl_fusion.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/afl-fuzz.c" beforeDir="false" afterPath="$PROJECT_DIR$/afl-fuzz.c" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -115,7 +112,7 @@
       <workItem from="1697424866987" duration="5175000" />
       <workItem from="1697439738411" duration="907000" />
       <workItem from="1697463746477" duration="5309000" />
-      <workItem from="1697702155502" duration="5284000" />
+      <workItem from="1697702155502" duration="7416000" />
     </task>
     <servers />
   </component>
