@@ -9407,7 +9407,7 @@ static void traverse_queue(char **argv){
 }
 
 //Function of Taint
-void single_mutate_step(u8 *in_buf, unsigned int offset, unsigned int size){
+void single_mutate_step(u8 *in_buf, unsigned int in_buf_size, unsigned int offset, unsigned int size){
   u8 *in_msg = in_buf + offset;
   struct taint_queue *cur_q = imp_taint_queue;
   while(cur_q){
@@ -9415,19 +9415,28 @@ void single_mutate_step(u8 *in_buf, unsigned int offset, unsigned int size){
         //get val field
         char *val_val = cur_q->val;
         unsigned int val_offset = cur_q->val.offset;
-        unsgined int val_size = cur_q->val.size;
+        unsigned int val_size = cur_q->val.size;
         //mutation step
         //bookmarks
-        int m = UR(3);
+        int m = UR(5);
         swtich(m){
           case 0:
-
+            unsigned int rand_offset = UR(in_buf_size - val_size);
+            memecpy(in_msg + val_offset, in_buf + rand_offset, val_size);
             break;
           case 1:
-
+            memcpy(in_msg + val_offset, val_val, val_size);
             break;
           case 2:
-
+            unsigned int rand_offset = UR(in_msg - val_size);
+            memcpy(in_msg + rand_offset, val_val, val_size);
+            break;
+          case 3:
+            unsigned int rand_offset_1 = UR(in_msg - val_size);
+            unsigned int rand_offset_2 = UR(in_buf_size - val_size);
+            memcpy(in_msg + rand_offset_1, in_buf + rand_offset_2, val_size);
+            break;
+          default:
             break;
         }
 
