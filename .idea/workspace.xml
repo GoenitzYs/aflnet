@@ -13,8 +13,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6f90889d-088b-415d-8887-4b63a780beac" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/afl_fusion.c" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/afl_fusion.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/aflnet.c" beforeDir="false" afterPath="$PROJECT_DIR$/aflnet.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/afl-fuzz.c" beforeDir="false" afterPath="$PROJECT_DIR$/afl-fuzz.c" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,33 +33,6 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
-  </component>
-  <component name="MakefileLocalSettings">
-    <option name="availableProjects">
-      <map>
-        <entry>
-          <key>
-            <ExternalProjectPojo>
-              <option name="name" value="aflnet" />
-              <option name="path" value="$PROJECT_DIR$" />
-            </ExternalProjectPojo>
-          </key>
-          <value>
-            <list>
-              <ExternalProjectPojo>
-                <option name="name" value="aflnet" />
-                <option name="path" value="$PROJECT_DIR$" />
-              </ExternalProjectPojo>
-            </list>
-          </value>
-        </entry>
-      </map>
-    </option>
-    <option name="projectSyncType">
-      <map>
-        <entry key="$PROJECT_DIR$" value="RE_IMPORT" />
-      </map>
-    </option>
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -139,7 +114,8 @@
       <workItem from="1697424300429" duration="358000" />
       <workItem from="1697424866987" duration="5175000" />
       <workItem from="1697439738411" duration="907000" />
-      <workItem from="1697463746477" duration="5034000" />
+      <workItem from="1697463746477" duration="5309000" />
+      <workItem from="1697702155502" duration="5284000" />
     </task>
     <servers />
   </component>

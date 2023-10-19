@@ -72,6 +72,10 @@
 #include <graphviz/gvc.h>
 #include <math.h>
 
+//DIY
+#include "afl_fusion.h"
+//END OF DIY
+
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
 #  include <sys/sysctl.h>
 #endif /* __APPLE__ || __FreeBSD__ || __OpenBSD__ */
@@ -421,6 +425,9 @@ static void add_q_to_queue(struct queue_entry *q);
 static void add_to_queue(u8* fname, u32 len, u8 passed_det);
 static void destroy_tmp_queue(struct queue_entry *q);
 static void traverse_queue(char **argv);
+
+void taint_mutation(u8 *in_buf);
+struct taint_queue *imp_taint_queue;
 
 EXP_ST u8 *p_file;
 EXP_ST u8 *err_kw_file;
@@ -5894,7 +5901,8 @@ AFLNET_REGIONS_SELECTION:;
       //Handle corner case(s) and skip the current queue entry
       if (M2_start_region_ID >= queue_cur->region_count) return 1;
     }
-  } else {
+  }
+  else {
     /* Select M2 randomly */
     u32 total_region = queue_cur->region_count;
     if (total_region == 0) PFATAL("0 region found for %s", queue_cur->fname);
@@ -8765,6 +8773,7 @@ static int check_ep_capability(cap_value_t cap, const char *filename) {
 
 
 //DIY
+//Function of Sequential Fuzzing
 /* Append new test case to the queue. */
 struct queue_entry* add_tmp_queue(u8* fname, u32 len, u8 passed_det) {
 
@@ -9374,6 +9383,28 @@ static void traverse_queue(char **argv){
   }
   queue_cur = queue;
 }
+
+//Function of Taint
+void taint_mutation(char ** argv, u8 *in_buf){
+    struct taint_queue *cur_q = imp_taint_queue;
+    while(cur_q){
+        if(check_taint(in_buf, cur_q->key)){
+            //get val field
+            u8 *out_buf =
+            val_offset = cur_q->val.offset;
+            val_size = cur_q->val.size;
+            //mutation step
+            //first, replace with default val and common_fuzz
+
+
+            if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;
+
+        }
+    }
+
+}
+//Function of Symbolic Execution
+
 //END OF DIY
 
 #ifndef AFL_LIB
