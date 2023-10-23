@@ -16,8 +16,8 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 static u8 *tmp_pfile = "protocol_info";
-protocol_info_t *p_info;
-protocol_info_t2 *p_info2;
+protocol_info_t *p_info = NULL;
+protocol_info_t2 *p_info2 = NULL;
 msg_symbol *head;
 msg_symbol *tail;
 msg_set *keyword_lists;
@@ -1570,87 +1570,6 @@ void read_keyword(char* f_name){
 }
 
 
-region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
-{
-  char *mem;
-  unsigned int byte_count = 0;
-  unsigned int mem_count = 0;
-  unsigned int mem_size = 1024;
-  unsigned int region_count = 0;
-  region_t *regions = NULL;
-  char terminator[2] = {0x0D, 0x0A};
-
-  mem=(char *)ck_alloc(mem_size);
-
-  unsigned int cur_start = 0;
-  unsigned int cur_end = 0;
-  while (byte_count < buf_size) {
-
-    memcpy(&mem[mem_count], buf + byte_count++, 1);
-
-    //Check if the last two bytes are 0x0D0A
-    // if ((mem_count > 1) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) {
-    if(
-      (mem_count > 1) &&
-      ( 
-        (
-          p_info2 &&
-          ((!(p_info2->symbols[1]) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) || check_tail(p_info2->symbols[1], &mem[mem_count], p_info2->symbols_length[1])) &&
-          (!(p_info2->symbols[0]) || check_head(p_info2->symbols[0], buf + byte_count, p_info2->symbols_length[0], buf_size - byte_count))
-        ) ||       
-        (!p_info2 && (memcmp(&mem[mem_count - 1], terminator, 2) == 0))
-      )
-    ){
-      region_count++;
-      regions = (region_t *)ck_realloc(regions, region_count * sizeof(region_t));
-      regions[region_count - 1].start_byte = cur_start;
-      regions[region_count - 1].end_byte = cur_end;
-      regions[region_count - 1].state_sequence = NULL;
-      regions[region_count - 1].state_count = 0;
-
-      mem_count = 0;
-      cur_start = cur_end + 1;
-      cur_end = cur_start;
-    } else {
-      mem_count++;
-      cur_end++;
-
-      //Check if the last byte has been reached
-      if (cur_end == buf_size - 1) {
-        region_count++;
-        regions = (region_t *)ck_realloc(regions, region_count * sizeof(region_t));
-        regions[region_count - 1].start_byte = cur_start;
-        regions[region_count - 1].end_byte = cur_end;
-        regions[region_count - 1].state_sequence = NULL;
-        regions[region_count - 1].state_count = 0;
-        break;
-      }
-
-      if (mem_count == mem_size) {
-        //enlarge the mem buffer
-        mem_size = mem_size * 2;
-        mem=(char *)ck_realloc(mem, mem_size);
-      }
-    }
-  }
-  if (mem) ck_free(mem);
-
-  //in case region_count equals zero, it means that the structure of the buffer is broken
-  //hence we create one region for the whole buffer
-  if ((region_count == 0) && (buf_size > 0)) {
-    regions = (region_t *)ck_realloc(regions, sizeof(region_t));
-    regions[0].start_byte = 0;
-    regions[0].end_byte = buf_size - 1;
-    regions[0].state_sequence = NULL;
-    regions[0].state_count = 0;
-
-    region_count = 1;
-  }
-
-  *region_count_ref = region_count;
-  return regions;
-}
-
 region_t* extract_requests_generic(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
 {
    char *mem;
@@ -1720,6 +1639,89 @@ region_t* extract_requests_generic(unsigned char* buf, unsigned int buf_size, un
   *region_count_ref = region_count;
   return regions;
 }
+
+region_t* extract_requests_generic_2(unsigned char* buf, unsigned int buf_size, unsigned int* region_count_ref)
+{
+  char *mem;
+  unsigned int byte_count = 0;
+  unsigned int mem_count = 0;
+  unsigned int mem_size = 1024;
+  unsigned int region_count = 0;
+  unsigned int min_req_len = 3;
+  region_t *regions = NULL;
+  char terminator[2] = {0x0D, 0x0A};
+
+  mem=(char *)ck_alloc(mem_size);
+
+  unsigned int cur_start = 0;
+  unsigned int cur_end = 0;
+  while (byte_count < buf_size) {
+
+    memcpy(&mem[mem_count], buf + byte_count++, 1);
+
+    //Check if the last two bytes are 0x0D0A
+    // if ((mem_count > 1) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) {
+    if(
+      (mem_count > 1) &&
+      ( 
+        (
+          p_info2 &&
+          ((!(p_info2->symbols[1]) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0)) || check_tail(p_info2->symbols[1], &mem[mem_count], p_info2->symbols_length[1])) &&
+          (!(p_info2->symbols[0]) || check_head(p_info2->symbols[0], buf + byte_count, p_info2->symbols_length[0], buf_size - byte_count))
+        ) ||       
+        (!p_info2 && (mem_count > min_req_len) && (memcmp(&mem[mem_count - 1], terminator, 2) == 0))
+      )
+    ){
+      region_count++;
+      regions = (region_t *)ck_realloc(regions, region_count * sizeof(region_t));
+      regions[region_count - 1].start_byte = cur_start;
+      regions[region_count - 1].end_byte = cur_end;
+      regions[region_count - 1].state_sequence = NULL;
+      regions[region_count - 1].state_count = 0;
+
+      mem_count = 0;
+      cur_start = cur_end + 1;
+      cur_end = cur_start;
+    } else {
+      mem_count++;
+      cur_end++;
+
+      //Check if the last byte has been reached
+      if (cur_end == buf_size - 1) {
+        region_count++;
+        regions = (region_t *)ck_realloc(regions, region_count * sizeof(region_t));
+        regions[region_count - 1].start_byte = cur_start;
+        regions[region_count - 1].end_byte = cur_end;
+        regions[region_count - 1].state_sequence = NULL;
+        regions[region_count - 1].state_count = 0;
+        break;
+      }
+
+      if (mem_count == mem_size) {
+        //enlarge the mem buffer
+        mem_size = mem_size * 2;
+        mem=(char *)ck_realloc(mem, mem_size);
+      }
+    }
+  }
+  if (mem) ck_free(mem);
+
+  //in case region_count equals zero, it means that the structure of the buffer is broken
+  //hence we create one region for the whole buffer
+  if ((region_count == 0) && (buf_size > 0)) {
+    regions = (region_t *)ck_realloc(regions, sizeof(region_t));
+    regions[0].start_byte = 0;
+    regions[0].end_byte = buf_size - 1;
+    regions[0].state_sequence = NULL;
+    regions[0].state_count = 0;
+
+    region_count = 1;
+  }
+
+  *region_count_ref = region_count;
+  return regions;
+}
+
 
 unsigned int* extract_response_codes_generic(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
 {
@@ -1860,8 +1862,9 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
     unsigned int min_seq_len = 5;
     unsigned int max_sat_len = 3;
     unsigned int sat_offset = 0;
-    static unsigned int recv_header_len;
-    char *recv_header = ck_alloc(sizeof(char) * 32);
+    unsigned int recv_header_len = 5;
+    char *recv_header = NULL;
+    // char *recv_header = ck_alloc(sizeof(char) * 32);
 
     mem=(char *)ck_alloc(mem_size);
 
@@ -1877,6 +1880,7 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
         sat_offset = p_info2->numeric_info[2];
 
         if(p_info2->recv_header != NULL){
+            recv_header = ck_alloc(sizeof(char) * 32);
             recv_header_len = strlen(p_info2->recv_header->symbol);
             memcpy(recv_header, p_info2->recv_header->symbol, recv_header_len);
         }
@@ -1901,16 +1905,16 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
 
                 mem[mem_count-1] = '\0';
                 if(check_keyword(mem) && (!err_queues || !check_err_hash(message_code))){
-                    struct hash_queue *new_q = ck_alloc(sizeof(struct hash_queue));
-                    new_q->code = message_code;
-                    if(!err_queues){
-                        err_queues = new_q;
-                        cur_err_queue = err_queues;
-                    }
-                    else{
-                        cur_err_queue->next = new_q;
-                        cur_err_queue = new_q;
-                    }
+                  struct hash_queue *new_q = ck_alloc(sizeof(struct hash_queue));
+                  new_q->code = message_code;
+                  if(!err_queues){
+                      err_queues = new_q;
+                      cur_err_queue = err_queues;
+                  }
+                  else{
+                      cur_err_queue->next = new_q;
+                      cur_err_queue = new_q;
+                  }
                 }
 
                 mem_count = 0;
@@ -1930,9 +1934,7 @@ unsigned int* extract_response_codes_generic_3(unsigned char* buf, unsigned int 
     *state_count_ref = state_count;
     return state_sequence;
 }
-
 //END OF DIY
-
 
 unsigned int* extract_response_codes_tftp(unsigned char* buf, unsigned int buf_size, unsigned int* state_count_ref)
 {

@@ -426,12 +426,13 @@ static void destroy_tmp_queue(struct queue_entry *q);
 static void traverse_queue(char **argv);
 
 void taint_mutation(char ** argv, u8 *in_buf, unsigned int in_buf_size);
-struct taint_queue *imp_taint_queue;
+struct taint_queue *imp_taint_queue = NULL;
 struct taint_field *buf_msg_queue;
 struct taint_field *cur_msg;
 
 EXP_ST u8 *p_file;
 EXP_ST u8 *err_kw_file;
+EXP_ST u8 *taint_kw_file;
 //END OF DIY
 
 /* Initialize the implemented state machine as a graphviz graph */
@@ -6009,50 +6010,52 @@ AFLNET_REGIONS_SELECTION:;
    *********************************************/
 
   //DIY, Taint Mutation
-  struct taint_field *msg_f = buf_msg_queue;
-  struct taint_queue *cur_q;
-  unsigned int offset, size;
-  u8 *in_msg = in_buf + offset;
+  if(imp_taint_queue){
+    struct taint_field *msg_f = buf_msg_queue;
+    struct taint_queue *cur_q;
+    unsigned int offset, size;
+    u8 *in_msg = in_buf + offset;
 
-  while(msg_f){
-    cur_q = imp_taint_queue;
-    while(cur_q){
-      if(check_taint(in_msg, &cur_q->key)){
-        //get val field
-        char *val_val = cur_q->val.val;
-        unsigned int val_offset = cur_q->val.offset;
-        unsigned int val_size = cur_q->val.size;
-        unsigned int rand_offset_1, rand_offset_2;
-        //mutation step
-        //bookmarks
-        int m = UR(5);
-        switch (m) {
-          case 0:
-            rand_offset_2 = UR(in_buf_size - val_size);
-            memcpy(in_msg + val_offset, in_buf + rand_offset_2, val_size);
-            break;
-          case 1:
-            memcpy(in_msg + val_offset, val_val, val_size);
-            break;
-          case 2:
-            rand_offset_1 = UR(size - val_size);
-            memcpy(in_msg + rand_offset_1, val_val, val_size);
-            break;
-          case 3:
-            rand_offset_1 = UR(size - val_size);
-            rand_offset_2 = UR(in_buf_size - val_size);
-            memcpy(in_msg + rand_offset_1, in_buf + rand_offset_2, val_size);
-            break;
-          default:
-            break;
+    while(msg_f){
+      cur_q = imp_taint_queue;
+      while(cur_q){
+        if(check_taint(in_msg, &cur_q->key)){
+          //get val field
+          char *val_val = cur_q->val.val;
+          unsigned int val_offset = cur_q->val.offset;
+          unsigned int val_size = cur_q->val.size;
+          unsigned int rand_offset_1, rand_offset_2;
+          //mutation step
+          //bookmarks
+          int m = UR(5);
+          switch (m) {
+            case 0:
+              rand_offset_2 = UR(in_buf_size - val_size);
+              memcpy(in_msg + val_offset, in_buf + rand_offset_2, val_size);
+              break;
+            case 1:
+              memcpy(in_msg + val_offset, val_val, val_size);
+              break;
+            case 2:
+              rand_offset_1 = UR(size - val_size);
+              memcpy(in_msg + rand_offset_1, val_val, val_size);
+              break;
+            case 3:
+              rand_offset_1 = UR(size - val_size);
+              rand_offset_2 = UR(in_buf_size - val_size);
+              memcpy(in_msg + rand_offset_1, in_buf + rand_offset_2, val_size);
+              break;
+            default:
+              break;
+          }
+
+          //first, replace with default val and common_fuzz
+          if (common_fuzz_stuff(argv, in_buf, in_buf_size)) goto abandon_entry;
         }
-
-        //first, replace with default val and common_fuzz
-        if (common_fuzz_stuff(argv, in_buf, in_buf_size)) goto abandon_entry;
+        cur_q = cur_q->next;
       }
-      cur_q = cur_q->next;
+      msg_f = msg_f->next;
     }
-    msg_f = msg_f->next;
   }
   //END OF DIY
 
@@ -9807,16 +9810,21 @@ int main(int argc, char** argv) {
         protocol_selected = 1;
 
         break;
-
+      // DIY
       case 'p': /* protocol_file */
-        if (p_file) FATAL("Multiple -i options not supported");
-        p_file = optarg;
+        if (p_file) FATAL("Multiple -p options not supported");
+        p_file = (u8 *) optarg;
         break;
 
-      case 'u': /* protocol_file */
-        if (err_kw_file) FATAL("Multiple -i options not supported");
-        err_kw_file = optarg;
+      case 'u': /* error keyword file */
+        if (err_kw_file) FATAL("Multiple -u options not supported");
+        err_kw_file = (u8 *) optarg;
         break;
+      
+      case 'y': /* taint keyword file */
+      if (taint_kw_file) FATAL("Multiple -y options not supported");
+        taint_kw_file = (u8 *) optarg;
+      //END OF DIY
 
       case 'K':
         if (terminate_child) FATAL("Multiple -K options not supported");
@@ -9921,10 +9929,12 @@ int main(int argc, char** argv) {
   //DIY
   // if (access("protocol_info", F_OK) == 0)
   //   remove("protocol_info");
-  if(p_file) 
-    read_pfile2(p_file);
-  if (access(err_kw_file, F_OK) == 0)
-    read_keyword(err_kw_file);
+  if(p_file && (access((char *)p_file, F_OK) == 0)) 
+    read_pfile2((char *)p_file);
+  if (access((char *)err_kw_file, F_OK) == 0)
+    read_keyword((char *)err_kw_file);
+  if (taint_kw_file && (access((char *)taint_kw_file, F_OK) == 0))
+    read_taint((char *)taint_kw_file);
   //END OF DIY
 
   save_cmdline(argc, argv);
