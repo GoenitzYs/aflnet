@@ -426,7 +426,8 @@ static void destroy_tmp_queue(struct queue_entry *q);
 static void traverse_queue(char **argv);
 
 void taint_mutation(char ** argv, u8 *in_buf, unsigned int in_buf_size);
-struct taint_queue *imp_taint_queue = NULL;
+// struct taint_queue *imp_taint_queue = NULL;
+taint_header taint_headers;
 struct taint_field *buf_msg_queue;
 struct taint_field *cur_msg;
 
@@ -6010,20 +6011,22 @@ AFLNET_REGIONS_SELECTION:;
    *********************************************/
 
   //DIY, Taint Mutation
-  if(imp_taint_queue){
+  if(taint_headers.num){
     struct taint_field *msg_f = buf_msg_queue;
     struct taint_queue *cur_q;
     unsigned int offset, size;
     u8 *in_msg = in_buf + offset;
 
     while(msg_f){
-      cur_q = imp_taint_queue;
-      while(cur_q){
-        if(check_taint(in_msg, &cur_q->key)){
+      // cur_q = imp_taint_queue;
+      // while(cur_q){
+      cur_q = taint_headers.taint_entry;
+      for(int i = 0; i < taint_headers.num; i++){
+        if(check_taint(in_msg, &cur_q->key) && cur_q->val){
           //get val field
-          char *val_val = cur_q->val.val;
-          unsigned int val_offset = cur_q->val.offset;
-          unsigned int val_size = cur_q->val.size;
+          char *val_val = cur_q->val->val;
+          unsigned int val_offset = cur_q->val->offset;
+          unsigned int val_size = cur_q->val->size;
           unsigned int rand_offset_1, rand_offset_2;
           //mutation step
           //bookmarks
@@ -9539,7 +9542,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:QN:D:W:w:e:P:p:u:KEq:s:RFc:l:")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:QN:D:W:w:e:P:p:u:y:KEq:s:RFc:l:")) > 0)
 
     switch (opt) {
 
@@ -9934,7 +9937,18 @@ int main(int argc, char** argv) {
   if (access((char *)err_kw_file, F_OK) == 0)
     read_keyword((char *)err_kw_file);
   if (taint_kw_file && (access((char *)taint_kw_file, F_OK) == 0))
-    read_taint((char *)taint_kw_file);
+    // imp_taint_queue = read_taint((char *)taint_kw_file);
+      taint_headers = read_taint((char *)taint_kw_file);
+  
+  struct taint_queue *cur_q = taint_headers.taint_entry;
+  for(int i = 0; i < taint_headers.num; i++){
+    extras = ck_realloc_block(extras, (extras_cnt + 1) *
+            sizeof(struct extra_data));
+    extras[extras_cnt].data = cur_q->key->val;
+    extras[extras_cnt].len = cur_q->key->size;
+    cur_q = cur_q->next;
+  }
+
   //END OF DIY
 
   save_cmdline(argc, argv);

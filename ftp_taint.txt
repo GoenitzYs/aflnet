@@ -1,0 +1,8 @@
+"USER anonymous";0:5,5:9
+"PASS ubuntu";0:5,5:6
+"SYST";0:4
+"PWD";0:3
+"PORT 127,0,0,1,132,209";0:5,5:17
+"LIST";0:4
+"MKD test";0:4,4:4
+"QUIT";0:4

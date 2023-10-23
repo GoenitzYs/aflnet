@@ -11,10 +11,15 @@ typedef struct{
 } keyword_unit;
 
 struct taint_queue{
-    keyword_unit key;
-    keyword_unit val;
+    keyword_unit *key;
+    keyword_unit *val;
     struct taint_queue *next;
 };
+
+typedef struct{
+    unsigned int num;
+    struct taint_queue* taint_entry;
+} taint_header;
 
 struct taint_field{
     unsigned int offset;
@@ -22,7 +27,7 @@ struct taint_field{
     struct taint_field *next;
 };
 
-struct taint_queue *read_taint(char *f_name);
+taint_header read_taint(char *f_name);
 bool check_taint(u8* in_buf, keyword_unit* keyword);
 
 
